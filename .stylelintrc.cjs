@@ -41,4 +41,16 @@ module.exports = {
     },
     extends: ['stylelint-config-standard-scss'],
     ignoreFiles: ['packages/*/dist/**/*.css'],
+    overrides: [
+        {
+            // Signal Engine ports literal rgba() from its reference implementation
+            // (avoids color-mix()'s unsupported-browser-feature risk) — keep it from
+            // being rewritten to modern rgb()-slash notation by lint-staged.
+            files: ['src/pages/signal-engine/**/*.scss'],
+            rules: {
+                'color-function-notation': null,
+                'alpha-value-notation': null,
+            },
+        },
+    ],
 };
