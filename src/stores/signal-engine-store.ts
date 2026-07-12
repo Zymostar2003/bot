@@ -8,7 +8,14 @@ import TicksService from '@/external/bot-skeleton/services/api/ticks_service';
 import { toFullHistoryTicks } from '@/utils/signal-engine/adapters';
 import { checkGravitonPulseCross } from '@/utils/signal-engine/crossover';
 import { calcGraviton } from '@/utils/signal-engine/graviton';
-import { consecDir, createHysteresisState, proSignal } from '@/utils/signal-engine/pro-signal';
+import {
+    consecDir,
+    consecEO,
+    createHysteresisState,
+    dPcts,
+    driftOf,
+    proSignal,
+} from '@/utils/signal-engine/pro-signal';
 import { calcPulse } from '@/utils/signal-engine/pulse';
 import { beepSignal } from '@/utils/signal-engine/sound';
 import {
@@ -28,6 +35,8 @@ import { calcVFPI, getIndicatorBias } from '@/utils/signal-engine/vfpi';
 import RootStore from './root-store';
 
 type TSignalEngineTab = 'rf' | 'ou' | 'eo';
+
+type TOUDirection = 'over' | 'under';
 
 type TIndicatorKey = 'vfpi' | 'graviton' | 'pulse';
 
@@ -76,6 +85,11 @@ export default class SignalEngineStore {
     sound_enabled = false;
     is_subscribed = false;
 
+    // Over/Under tab state — faithful defaults from the reference's globals
+    // (index-335-black-bars.html, line 12167: "let activeBarrier = 5, activeDir = 'over'").
+    active_barrier = 5;
+    active_dir: TOUDirection = 'over';
+
     // Written by the reaction watching vfpi_results, mirroring the reference's
     // _lastVfpiValue: it's "sticky" — it only updates when calcVFPI returns a non-empty
     // result, so a momentary gap (e.g. too few candles) doesn't reset bias to neutral.
@@ -100,15 +114,21 @@ export default class SignalEngineStore {
             cross_signal: observable,
             chart_markers: observable,
             pro_signal: observable,
+            active_barrier: observable,
+            active_dir: observable,
             full_history: computed,
             graviton_data: computed,
             pulse_data: computed,
             vfpi_results: computed,
             vfpi_bias: computed,
             rf_gating: computed,
+            ou_gating: computed,
+            eo_gating: computed,
             setSymbol: action.bound,
             setGranularity: action.bound,
             setActiveTab: action.bound,
+            setActiveBarrier: action.bound,
+            setActiveDir: action.bound,
             updateIndicatorSetting: action.bound,
             resetIndicatorSettings: action.bound,
             toggleIndicator: action.bound,
@@ -226,6 +246,96 @@ export default class SignalEngineStore {
         const hasSig = riseReady || fallReady;
         const sigType: 'RISE' | 'FALL' | null = riseReady ? 'RISE' : fallReady ? 'FALL' : null;
         return { rCnt, fCnt, riseReady, fallReady, hasSig, sigType, bias };
+    }
+
+    // Faithful port of renderOU's activeRoom===0 gating (reference: index-335-black-bars.html,
+    // lines 14105-14189) — barrier grid percentages, cursor/stability check, and the
+    // over/under group split. `bestBarrier` auto-detection lives separately in proSignal's
+    // `ou` result (used for the run meter); this is specifically the user-selected
+    // active_barrier/active_dir the barrier grid and entry signal box react to.
+    get ou_gating() {
+        const p1000 = dPcts(this.full_history, 1000);
+        const cur = this.full_history[this.full_history.length - 1]?.digit ?? 0;
+        const barrier = this.active_barrier;
+        const cursorOnBarrier = cur === barrier;
+        const isStable = Math.abs(driftOf(this.full_history, barrier)) < 0.5;
+        const belowWeak =
+            this.active_dir === 'over'
+                ? Array.from({ length: barrier + 1 }, (_, i) => i).every(i => p1000[i].pct <= 9)
+                : false;
+        const aboveWeak =
+            this.active_dir === 'under'
+                ? Array.from({ length: 9 - barrier }, (_, i) => barrier + i).every(i => (p1000[i]?.pct ?? 0) < 10)
+                : false;
+        const canEnter = cursorOnBarrier && isStable && (this.active_dir === 'over' ? belowWeak : aboveWeak);
+
+        const overDigits = [barrier + 1, barrier + 2, barrier + 3, barrier + 4, barrier + 5].filter(d => d <= 9);
+        const underDigits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].slice(0, barrier + 1);
+        const overPct = overDigits.reduce((a, d) => a + p1000[d].pct, 0);
+        const underPct = underDigits.reduce((a, d) => a + p1000[d].pct, 0);
+        const overStrong = overPct > underPct && overDigits.every(d => p1000[d].pct > 0);
+        const underStrong = underPct > overPct;
+
+        return {
+            p1000,
+            cur,
+            cursorOnBarrier,
+            isStable,
+            canEnter,
+            overDigits,
+            underDigits,
+            overPct,
+            underPct,
+            overStrong,
+            underStrong,
+        };
+    }
+
+    // Faithful port of renderEO's activeRoom===0 gating (reference: index-335-black-bars.html,
+    // lines 14282-14310) — even/odd digit-percentage groups, streak readiness, and the "best
+    // signal" verdict.
+    get eo_gating() {
+        const p1000 = dPcts(this.full_history, 1000);
+        const evenD = [0, 2, 4, 6, 8];
+        const oddD = [1, 3, 5, 7, 9];
+        const evenSum = evenD.reduce((a, d) => a + p1000[d].pct, 0);
+        const oddSum = oddD.reduce((a, d) => a + p1000[d].pct, 0);
+        const evenAbove10 = evenD.filter(d => p1000[d].pct >= 10).length;
+        const oddAbove10 = oddD.filter(d => p1000[d].pct >= 10).length;
+        const noOddHigh = !oddD.some(d => p1000[d].pct >= 9.7);
+        const noEvenHigh = !evenD.some(d => p1000[d].pct >= 9.7);
+        const eoStreak = consecEO(this.full_history);
+        const evenReady = evenAbove10 >= 3 && noOddHigh;
+        const oddReady = oddAbove10 >= 3 && noEvenHigh;
+        const sig: 'EVEN' | 'ODD' =
+            evenReady && eoStreak.even >= 3
+                ? 'EVEN'
+                : oddReady && eoStreak.odd >= 3
+                  ? 'ODD'
+                  : evenSum > oddSum
+                    ? 'EVEN'
+                    : 'ODD';
+        const conf: 'STRONG' | 'MODERATE' | 'WEAK' =
+            (sig === 'EVEN' && evenReady && eoStreak.even >= 3) || (sig === 'ODD' && oddReady && eoStreak.odd >= 3)
+                ? 'STRONG'
+                : evenAbove10 >= 2 || oddAbove10 >= 2
+                  ? 'MODERATE'
+                  : 'WEAK';
+
+        return {
+            p1000,
+            evenD,
+            oddD,
+            evenSum,
+            oddSum,
+            evenAbove10,
+            oddAbove10,
+            evenReady,
+            oddReady,
+            eoStreak,
+            sig,
+            conf,
+        };
     }
 
     // ── Sound (lazy AudioContext, matching the reference's beep()) ──
@@ -375,6 +485,15 @@ export default class SignalEngineStore {
 
     setActiveTab = (active_tab: TSignalEngineTab) => {
         this.active_tab = active_tab;
+    };
+
+    // Faithful port of setDir/initOUGrid's barrier click handler (reference lines 14075-14090).
+    setActiveBarrier = (active_barrier: number) => {
+        this.active_barrier = active_barrier;
+    };
+
+    setActiveDir = (active_dir: TOUDirection) => {
+        this.active_dir = active_dir;
     };
 
     // Faithful port of the reference app's isUpdate ordering-enforcement

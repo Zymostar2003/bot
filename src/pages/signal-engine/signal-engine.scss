@@ -27,9 +27,24 @@
 }
 
 .signal-engine {
+    // `height: 100%` can't resolve here: the ancestor chain from `.main` down to this
+    // panel (the untitled wrapper div in main.tsx -> .dc-tabs -> .dc-tabs__content) is
+    // all auto-height, so percentages bottom out at `auto` and the panel just grows with
+    // its content until `.main`'s `overflow: hidden` clips it instead of scrolling it.
+    // Anchoring to 100vh instead — same technique bot-dashboard.scss uses for its own
+    // scrollable panels — gives this element an actual bounded height to scroll within.
+    // 17.2rem = .main's own "100vh - 9rem" + .main's 1.6rem top/bottom padding (3.2rem)
+    // + the .dc-tabs tab-bar row (4.8rem item height + 0.2rem bottom border).
+    box-sizing: border-box;
     padding: 1.6rem;
-    height: 100%;
+    height: calc(100vh - 17.2rem);
     overflow-y: auto;
+
+    // Mobile: .main drops to "100vh - 6rem" with 0 padding, so only the tab-bar row
+    // (~5rem) still needs subtracting.
+    @include mobile-or-tablet-screen {
+        height: calc(100vh - 11rem);
+    }
 
     &__header {
         display: flex;
@@ -53,6 +68,48 @@
         font-size: var(--text-size-m);
         line-height: 1;
     }
+
+    // Faithful port of the reference's #bnav-rf/ou/eo bottom nav (index-335-black-bars.html,
+    // lines 12146-12156) as an internal tab switcher — a segmented control within this page,
+    // not new dashboard-level tabs.
+    &__tabs {
+        display: flex;
+        gap: 0.8rem;
+        margin-bottom: 1.2rem;
+    }
+
+    &__tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        background: var(--general-section-1);
+        border: 1.5px solid var(--border-normal);
+        border-radius: 1rem;
+        padding: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &-icon {
+            font-size: var(--text-size-m);
+        }
+
+        &-label {
+            font-size: var(--text-size-xs);
+            font-weight: bold;
+            color: var(--text-less-prominent);
+        }
+
+        &--active {
+            border-color: var(--signal-engine-tab-accent);
+            background: var(--general-section-2);
+
+            .signal-engine__tab-label {
+                color: var(--signal-engine-tab-accent);
+            }
+        }
+    }
 }
 
 .signal-engine-rf-panel {
@@ -60,7 +117,7 @@
     flex-direction: column;
     gap: 1.2rem;
 
-    &--loading {
+    &__loading {
         padding: 2.4rem;
         text-align: center;
         color: var(--text-less-prominent);
@@ -74,6 +131,20 @@
     &--hot-dn {
         animation: signal-engine-glow-dn 1.6s ease-in-out infinite;
     }
+}
+
+// Faithful port of #chart-container's sizing (reference: index-335-black-bars.html, line
+// 11887: "height:calc(100dvh - 110px);min-height:300px"). A fixed height is load-bearing
+// here, not cosmetic — lightweight-charts' createChart() reads the container's clientWidth/
+// clientHeight at mount time, and a 0-height container (e.g. one relying on a % height that
+// bottoms out at `auto` up an unbounded ancestor chain) silently renders nothing.
+.signal-engine-chart {
+    width: 100%;
+    height: 32rem;
+    min-height: 30rem;
+    border-radius: 1.4rem;
+    overflow: hidden;
+    background: var(--general-main-1);
 }
 
 .signal-engine-group-box {
@@ -354,5 +425,400 @@
         &--fall {
             color: var(--status-danger);
         }
+    }
+}
+
+// Faithful port of #ou-live-price/#ou-live-digit/#ou-live-verdict and their EO equivalents
+// (reference: index-335-black-bars.html, lines 14107-14130, 14284-14304).
+.signal-engine-live-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: var(--general-section-1);
+    border-radius: 1rem;
+    padding: 0.8rem 1.2rem;
+
+    &__price {
+        font-size: var(--text-size-s);
+        font-weight: bold;
+    }
+
+    &__digit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.2rem;
+        height: 3.2rem;
+        border-radius: 0.8rem;
+        border: 1.5px solid var(--border-normal);
+        font-size: var(--text-size-s);
+        font-weight: bold;
+    }
+
+    &__verdict {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+    }
+}
+
+// Faithful port of wormDigitHTML/wormParityHTML's `.worm`/`.wdot` (reference:
+// index-335-black-bars.html, lines 13601-13619).
+.signal-engine-digit-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+
+    &__dot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-colored-background);
+    }
+}
+
+// Faithful port of the direction toggle + #ou-barrier-grid (reference:
+// index-335-black-bars.html, lines 14082-14090).
+.signal-engine-barrier-selector {
+    &__dir-toggle {
+        display: flex;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
+    }
+
+    &__dir-btn {
+        flex: 1;
+        padding: 0.8rem;
+        border-radius: 1rem;
+        border: 1.5px solid var(--border-normal);
+        background: var(--general-section-1);
+        color: var(--text-less-prominent);
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &--over.signal-engine-barrier-selector__dir-btn--selected {
+            border-color: var(--status-success);
+            background: rgba(0, 200, 83, 0.12);
+            color: var(--status-success);
+        }
+
+        &--under.signal-engine-barrier-selector__dir-btn--selected {
+            border-color: var(--status-danger);
+            background: rgba(255, 82, 82, 0.09);
+            color: var(--status-danger);
+        }
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.5rem;
+    }
+
+    &__btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.6rem 0.2rem;
+        border-radius: 0.8rem;
+        border: 1.5px solid var(--border-normal);
+        background: var(--general-section-1);
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &--selected {
+            border-color: var(--status-warning);
+            background: rgba(255, 145, 0, 0.12);
+        }
+    }
+
+    &__digit {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+    }
+}
+
+// Faithful port of #ou-dgrid (reference: index-335-black-bars.html, lines 14150-14159).
+.signal-engine-digit-heat-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+
+    &__cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.6rem 0.2rem;
+        border-radius: 0.8rem;
+        color: var(--text-colored-background);
+
+        &--highlighted {
+            border: 2px solid var(--text-colored-background);
+        }
+    }
+
+    &__digit {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxxs);
+    }
+
+    &__arrow {
+        font-size: var(--text-size-xxxs);
+    }
+}
+
+// Faithful port of the OVER/UNDER group cards (reference: index-335-black-bars.html,
+// lines 14177-14189).
+.signal-engine-ou-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.signal-engine-ou-group {
+    border: 2px solid var(--border-normal);
+    border-radius: 1.4rem;
+    padding: 1.2rem;
+    background: var(--general-section-1);
+    transition: all 0.4s ease;
+
+    &--over.signal-engine-ou-group--active {
+        border-color: var(--status-success);
+        background: rgba(0, 200, 83, 0.05);
+    }
+
+    &--under.signal-engine-ou-group--active {
+        border-color: var(--status-danger);
+        background: rgba(255, 82, 82, 0.05);
+    }
+
+    &__header {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.15rem;
+        color: var(--status-success);
+        margin-bottom: 0.6rem;
+    }
+
+    &--under &__header {
+        color: var(--status-danger);
+    }
+
+    &__digits {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+
+    &__digit {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.1rem;
+        padding: 0.4rem 0.2rem;
+        border-radius: 0.4rem;
+        background: var(--general-section-2);
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+
+        &--strong {
+            background: var(--status-success);
+            color: var(--text-colored-background);
+        }
+
+        &--under.signal-engine-ou-group__digit--strong {
+            background: var(--status-danger);
+        }
+    }
+
+    &__total {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+    }
+}
+
+// Faithful port of #eo-signal / #eo-even-cells / #eo-consec (reference:
+// index-335-black-bars.html, lines 14282-14365).
+.signal-engine-eo-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.signal-engine-eo-best-signal {
+    font-size: var(--text-size-xxs);
+    font-weight: bold;
+    color: var(--text-less-prominent);
+
+    &__value {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+
+        &--even {
+            color: var(--status-success);
+        }
+
+        &--odd {
+            color: var(--status-warning);
+        }
+    }
+
+    &__badge {
+        margin-left: 0.6rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.8rem;
+        font-size: var(--text-size-xxxs);
+
+        &--strong {
+            background: rgba(0, 200, 83, 0.15);
+            color: var(--status-success);
+        }
+
+        &--moderate {
+            background: rgba(255, 145, 0, 0.12);
+            color: var(--status-warning);
+        }
+
+        &--weak {
+            background: var(--general-section-2);
+            color: var(--text-less-prominent);
+        }
+    }
+}
+
+.signal-engine-eo-group {
+    border: 2px solid var(--border-normal);
+    border-radius: 1.4rem;
+    padding: 1.2rem;
+    background: var(--general-section-1);
+
+    &__header {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.15rem;
+        color: var(--text-less-prominent);
+        margin-bottom: 0.6rem;
+    }
+
+    &__cells {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.6rem;
+    }
+
+    &__status {
+        display: flex;
+        justify-content: space-between;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+    }
+}
+
+.signal-engine-eo-cell {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.4rem 0.2rem;
+    border-radius: 0.6rem;
+    background: var(--general-section-2);
+    overflow: hidden;
+
+    &__digit {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-general);
+        z-index: 1;
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+        z-index: 1;
+    }
+
+    &__bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 0.3rem;
+        background: var(--border-normal);
+    }
+
+    &--strong &__bar {
+        background: var(--status-success);
+    }
+
+    &--odd.signal-engine-eo-cell--strong &__bar {
+        background: var(--status-warning);
+    }
+
+    &--warm &__bar {
+        background: var(--status-warning);
+    }
+}
+
+.signal-engine-eo-consec {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    &__dots {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    &__dot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.4rem;
+        height: 2.4rem;
+        border-radius: 0.6rem;
+        background: var(--general-section-2);
+        border: 1px solid var(--border-normal);
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+
+        &--hit {
+            background: var(--status-success);
+            border-color: var(--status-success);
+            color: var(--text-colored-background);
+        }
+    }
+
+    &__text {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
     }
 }
