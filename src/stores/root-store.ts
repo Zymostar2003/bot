@@ -14,6 +14,7 @@ import QuickStrategyStore from './quick-strategy-store';
 import RunPanelStore from './run-panel-store';
 import SaveModalStore from './save-modal-store';
 import SelfExclusionStore from './self-exclusion-store';
+import SignalEngineStore from './signal-engine-store';
 import SummaryCardStore from './summary-card-store';
 import ToolbarStore from './toolbar-store';
 import ToolboxStore from './toolbox-store';
@@ -42,6 +43,7 @@ export default class RootStore {
     public chart_store: ChartStore;
     public blockly_store: BlocklyStore;
     public data_collection_store: DataCollectionStore;
+    public signal_engine: SignalEngineStore;
 
     public ui: UiStore;
     public client: ClientStore;
@@ -84,5 +86,7 @@ export default class RootStore {
         this.chart_store = new ChartStore(this);
         this.blockly_store = new BlocklyStore(this);
         this.data_collection_store = new DataCollectionStore(this, this.core);
+        // depends on chart_store.symbol as its one-time initial default (see SignalEngineStore.initDefaultSymbol)
+        this.signal_engine = new SignalEngineStore(this);
     }
 }

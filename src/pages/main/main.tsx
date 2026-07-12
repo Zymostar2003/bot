@@ -35,6 +35,7 @@ import './main.scss';
 
 const ChartWrapper = lazy(() => import('../chart/chart-wrapper'));
 const Tutorial = lazy(() => import('../tutorials'));
+const SignalEngine = lazy(() => import('../signal-engine'));
 
 const AppWrapper = observer(() => {
     const { connectionStatus } = useApiBase();
@@ -66,7 +67,7 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'signal_engine', 'smart_analysis'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -85,7 +86,7 @@ const AppWrapper = observer(() => {
 
     React.useEffect(() => {
         const el_dashboard = document.getElementById('id-dbot-dashboard');
-        const el_tutorial = document.getElementById('id-tutorials');
+        const el_last_tab = document.getElementById('id-smart-analysis');
 
         const observer_dashboard = new window.IntersectionObserver(
             ([entry]) => {
@@ -101,7 +102,7 @@ const AppWrapper = observer(() => {
             }
         );
 
-        const observer_tutorial = new window.IntersectionObserver(
+        const observer_last_tab = new window.IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
                     setRightTabShadow(false);
@@ -115,7 +116,7 @@ const AppWrapper = observer(() => {
             }
         );
         observer_dashboard.observe(el_dashboard);
-        observer_tutorial.observe(el_tutorial);
+        observer_last_tab.observe(el_last_tab);
     });
 
     React.useEffect(() => {
@@ -348,6 +349,20 @@ const AppWrapper = observer(() => {
                                     >
                                         <Tutorial handleTabChange={handleTabChange} />
                                     </Suspense>
+                                </div>
+                            </div>
+                            <div label={<Localize i18n_default_text='Signal Engine' />} id='id-signal-engine'>
+                                <Suspense
+                                    fallback={
+                                        <ChunkLoader message={localize('Please wait, loading signal engine...')} />
+                                    }
+                                >
+                                    <SignalEngine />
+                                </Suspense>
+                            </div>
+                            <div label={<Localize i18n_default_text='Smart Analysis' />} id='id-smart-analysis'>
+                                <div className='tab-placeholder'>
+                                    <Localize i18n_default_text='Smart Analysis' />
                                 </div>
                             </div>
                         </Tabs>
