@@ -6,6 +6,7 @@ import { Localize, localize } from '@deriv-com/translations';
 import EvenOddPanel from './components/even-odd-panel';
 import OverUnderPanel from './components/over-under-panel';
 import RiseFallPanel from './components/rise-fall-panel';
+import SignalEngineToolbar from './components/signal-engine-toolbar';
 import './signal-engine.scss';
 
 // Faithful port of the reference's bottom nav / setTab (index-335-black-bars.html, lines
@@ -21,12 +22,11 @@ const TABS: { key: 'rf' | 'ou' | 'eo'; icon: string; label: React.ReactNode; acc
 
 const SignalEngine = observer(() => {
     const { signal_engine } = useStore();
-    const { symbol, sound_enabled, toggleSound, active_tab, setActiveTab } = signal_engine;
+    const { sound_enabled, toggleSound, active_tab, setActiveTab } = signal_engine;
 
     return (
         <div className='signal-engine'>
             <div className='signal-engine__header'>
-                <span className='signal-engine__symbol'>{symbol || localize('Loading…')}</span>
                 <button
                     type='button'
                     className='signal-engine__sound-toggle'
@@ -37,27 +37,34 @@ const SignalEngine = observer(() => {
                     {sound_enabled ? '🔊' : '🔇'}
                 </button>
             </div>
-            <div className='signal-engine__tabs' role='tablist'>
-                {TABS.map(tab => (
-                    <button
-                        key={tab.key}
-                        type='button'
-                        role='tab'
-                        aria-selected={active_tab === tab.key}
-                        className={classNames('signal-engine__tab', {
-                            'signal-engine__tab--active': active_tab === tab.key,
-                        })}
-                        style={{ '--signal-engine-tab-accent': tab.accent } as React.CSSProperties}
-                        onClick={() => setActiveTab(tab.key)}
-                    >
-                        <span className='signal-engine__tab-icon'>{tab.icon}</span>
-                        <span className='signal-engine__tab-label'>{tab.label}</span>
-                    </button>
-                ))}
+            <div className='signal-engine__body'>
+                <aside className='signal-engine__sidebar'>
+                    <SignalEngineToolbar />
+                    <div className='signal-engine__tabs' role='tablist'>
+                        {TABS.map(tab => (
+                            <button
+                                key={tab.key}
+                                type='button'
+                                role='tab'
+                                aria-selected={active_tab === tab.key}
+                                className={classNames('signal-engine__tab', {
+                                    'signal-engine__tab--active': active_tab === tab.key,
+                                })}
+                                style={{ '--signal-engine-tab-accent': tab.accent } as React.CSSProperties}
+                                onClick={() => setActiveTab(tab.key)}
+                            >
+                                <span className='signal-engine__tab-icon'>{tab.icon}</span>
+                                <span className='signal-engine__tab-label'>{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </aside>
+                <main className='signal-engine__main'>
+                    {active_tab === 'rf' && <RiseFallPanel />}
+                    {active_tab === 'ou' && <OverUnderPanel />}
+                    {active_tab === 'eo' && <EvenOddPanel />}
+                </main>
             </div>
-            {active_tab === 'rf' && <RiseFallPanel />}
-            {active_tab === 'ou' && <OverUnderPanel />}
-            {active_tab === 'eo' && <EvenOddPanel />}
         </div>
     );
 });

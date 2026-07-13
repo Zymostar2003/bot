@@ -32,6 +32,7 @@ import {
     TVfpiResult,
 } from '@/utils/signal-engine/types';
 import { calcVFPI, getIndicatorBias } from '@/utils/signal-engine/vfpi';
+import { ActiveSymbols } from '@deriv/api-types';
 import RootStore from './root-store';
 
 type TSignalEngineTab = 'rf' | 'ou' | 'eo';
@@ -90,6 +91,14 @@ export default class SignalEngineStore {
     active_barrier = 5;
     active_dir: TOUDirection = 'over';
 
+    // Asset picker options — a local observable copy of api_base.active_symbols (itself a
+    // plain non-reactive array) scoped to synthetic indices only, matching the reference's
+    // 4 categories (volatility/jump/crash_boom/step), which are all market:'synthetic_index'
+    // submarkets. Reused from the existing app-wide active_symbols fetch — the reference
+    // opens its own separate `active_symbols:'brief'` socket call (buildMarketList, line
+    // 13419); that's not ported since dbot already fetches this once at connection open.
+    available_symbols: ActiveSymbols = [];
+
     // Written by the reaction watching vfpi_results, mirroring the reference's
     // _lastVfpiValue: it's "sticky" — it only updates when calcVFPI returns a non-empty
     // result, so a momentary gap (e.g. too few candles) doesn't reset bias to neutral.
@@ -116,6 +125,7 @@ export default class SignalEngineStore {
             pro_signal: observable,
             active_barrier: observable,
             active_dir: observable,
+            available_symbols: observable,
             full_history: computed,
             graviton_data: computed,
             pulse_data: computed,
@@ -124,11 +134,13 @@ export default class SignalEngineStore {
             rf_gating: computed,
             ou_gating: computed,
             eo_gating: computed,
+            symbol_options: computed,
             setSymbol: action.bound,
             setGranularity: action.bound,
             setActiveTab: action.bound,
             setActiveBarrier: action.bound,
             setActiveDir: action.bound,
+            setAvailableSymbols: action.bound,
             updateIndicatorSetting: action.bound,
             resetIndicatorSettings: action.bound,
             toggleIndicator: action.bound,
@@ -151,6 +163,7 @@ export default class SignalEngineStore {
             if (status === CONNECTION_STATUS.OPENED && api_base.api) {
                 this.initDefaultSymbol();
                 this.startMonitoring();
+                this.loadAvailableSymbols();
             }
         });
 
@@ -338,6 +351,16 @@ export default class SignalEngineStore {
         };
     }
 
+    // Asset dropdown options, grouped by submarket (e.g. "Volatility Indices", "Crash/Boom
+    // Indices") — SelectNative groups automatically via each item's `group` field.
+    get symbol_options() {
+        return this.available_symbols.map(s => ({
+            text: s.display_name,
+            value: s.symbol,
+            group: s.submarket_display_name,
+        }));
+    }
+
     // ── Sound (lazy AudioContext, matching the reference's beep()) ──
 
     getAudioCtx = (): AudioContext => {
@@ -388,6 +411,18 @@ export default class SignalEngineStore {
             this.symbol = chart_store.symbol;
         }
         this.has_set_initial_symbol = true;
+    };
+
+    // Faithful port of buildMarketList's data source (reference: index-335-black-bars.html,
+    // lines 13419-13433), scoped to synthetic indices only. Reuses the app's existing
+    // active_symbols fetch (api_base.active_symbols / active_symbols_promise) rather than
+    // opening the reference's separate `active_symbols:'brief'` socket call.
+    loadAvailableSymbols = async () => {
+        if (!api_base.has_active_symbols) {
+            await api_base.active_symbols_promise;
+        }
+        const symbols = (api_base.active_symbols ?? []) as ActiveSymbols;
+        this.setAvailableSymbols(symbols.filter(s => s.market === 'synthetic_index'));
     };
 
     startMonitoring = () => {
@@ -494,6 +529,10 @@ export default class SignalEngineStore {
 
     setActiveDir = (active_dir: TOUDirection) => {
         this.active_dir = active_dir;
+    };
+
+    setAvailableSymbols = (available_symbols: ActiveSymbols) => {
+        this.available_symbols = available_symbols;
     };
 
     // Faithful port of the reference app's isUpdate ordering-enforcement

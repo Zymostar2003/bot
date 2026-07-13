@@ -1,9 +1,17 @@
-﻿@use 'components/shared/styles/constants' as *;
+@use 'components/shared/styles/constants' as *;
 @use 'components/shared/styles/mixins' as *;
 
 /**
  * @define signal-engine
  */
+
+// dbot's own mobile-or-tablet-screen/mobile-screen mixins (components/shared/styles/
+// _devices.scss) are tuned to 1280px/600px, which don't match the ~1024px/~640px thresholds
+// this page's two-column-to-stacked collapse needs — using plain @media queries here instead,
+// scoped to this component only, per the "otherwise use standard @media queries" fallback.
+$signal-engine-collapse-width: 1024px;
+$signal-engine-compact-width: 640px;
+
 @keyframes signal-engine-glow-up {
     0%,
     100% {
@@ -35,10 +43,23 @@
     // scrollable panels — gives this element an actual bounded height to scroll within.
     // 17.2rem = .main's own "100vh - 9rem" + .main's 1.6rem top/bottom padding (3.2rem)
     // + the .dc-tabs tab-bar row (4.8rem item height + 0.2rem bottom border).
+    // width: 100% is load-bearing too, not cosmetic: this element's direct parent
+    // (.dc-tabs__content--main__tabs, main.scss) is `display: flex` with the default row
+    // direction, and it holds only this one child at a time (Tabs only renders the active
+    // tab's content). A flex item with no explicit width sizes to fit its own content
+    // (flex-basis: auto), not the row's full width — so without this, .signal-engine and
+    // everything inside it (including the chart) shrinks to whatever width its content
+    // naturally wants, squeezed into the left portion of the row with empty space to the
+    // right of it.
+    // Body below (sidebar + main) owns its own scroll regions instead of this element
+    // scrolling as one unit — see __sidebar/__main.
     box-sizing: border-box;
+    width: 100%;
     padding: 1.6rem;
     height: calc(100vh - 17.2rem);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     // Mobile: .main drops to "100vh - 6rem" with 0 padding, so only the tab-bar row
     // (~5rem) still needs subtracting.
@@ -49,14 +70,9 @@
     &__header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-end;
         margin-bottom: 1.2rem;
-    }
-
-    &__symbol {
-        font-size: var(--text-size-m);
-        font-weight: bold;
-        color: var(--text-general);
+        flex-shrink: 0;
     }
 
     &__sound-toggle {
@@ -69,27 +85,109 @@
         line-height: 1;
     }
 
+    // Two-column layout matching SmartCharts' left drawing-tools sidebar: a narrow fixed
+    // sidebar (asset/timeframe pickers + contract-type switcher) and a main area that fills
+    // the rest. min-height: 0 on a flex row is load-bearing — without it, flex children
+    // default to min-height: auto and grow to fit their content instead of respecting this
+    // row's bounded height, which is exactly the bug __sidebar/__main's own overflow-y: auto
+    // is meant to replace with proper internal scrolling.
+    &__body {
+        display: flex;
+        gap: 1.2rem;
+        flex: 1;
+        min-height: 0;
+
+        // Below the collapse width there's no longer room for a side-by-side sidebar +
+        // chart/signal-UI split — stack the sidebar (now a compact horizontal bar) above
+        // the main content instead.
+        @media (max-width: #{$signal-engine-collapse-width}) {
+            flex-direction: column;
+        }
+    }
+
+    // Desktop: a narrow fixed vertical column (SmartCharts drawing-tools style). Collapsed:
+    // becomes a horizontal bar — asset select, timeframe select, and the 3 contract-type
+    // buttons all in one wrapping row (see __tabs/.signal-engine-toolbar's own breakpoints
+    // below). Compact: that bar splits back into two stacked rows — dropdowns, then buttons
+    // — since 5 controls no longer fit one row at phone widths.
+    &__sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+        width: 20rem;
+        flex-shrink: 0;
+        overflow-y: auto;
+
+        @media (max-width: #{$signal-engine-collapse-width}) {
+            width: 100%;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            overflow-y: visible;
+        }
+
+        @media (max-width: #{$signal-engine-compact-width}) {
+            flex-direction: column;
+        }
+    }
+
+    // display: flex + flex-direction: column so the Rise/Fall chart (its only child when
+    // that tab is active) can flex: 1 to fill this area exactly. Over/Under and Even/Odd's
+    // panels don't opt into that (see their flex-shrink: 0) — they just stack naturally and
+    // this element's overflow-y: auto scrolls if their content is taller than the space.
+    // padding-bottom clears dbot's global mobile Run/Stop bar (.controls__section,
+    // run-panel.scss) — position: fixed, bottom: 0, full width, z-index: 8, holding a 6rem
+    // button row. It overlays on top of page content regardless of DOM nesting, so without
+    // this the last bit of scrolled content here (chart bottom, or the OU/EO run meter card)
+    // sits underneath it. 6rem bar height + 1.6rem buffer. Not breakpoint-gated — the bar's
+    // height doesn't vary by viewport, so this applies uniformly at every width.
+    &__main {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding-bottom: 7.6rem;
+    }
+
     // Faithful port of the reference's #bnav-rf/ou/eo bottom nav (index-335-black-bars.html,
-    // lines 12146-12156) as an internal tab switcher — a segmented control within this page,
-    // not new dashboard-level tabs.
+    // lines 12146-12156) as an internal contract-type switcher — now a vertical list in the
+    // sidebar (SmartCharts-style) instead of a horizontal segmented control.
     &__tabs {
         display: flex;
-        gap: 0.8rem;
-        margin-bottom: 1.2rem;
+        flex-direction: column;
+        gap: 0.6rem;
+
+        // Collapsed/compact: the 3 buttons form their own row (wrapping if a phone-width
+        // viewport can't fit all 3), sitting below the dropdowns' row per __sidebar's own
+        // row/column switch above.
+        @media (max-width: #{$signal-engine-collapse-width}) {
+            flex-direction: row;
+            flex-wrap: wrap;
+            flex: 1;
+            min-width: 20rem;
+        }
     }
 
     &__tab {
-        flex: 1;
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 0.6rem;
+        justify-content: flex-start;
+        gap: 0.8rem;
+        width: 100%;
         background: var(--general-section-1);
         border: 1.5px solid var(--border-normal);
         border-radius: 1rem;
-        padding: 0.8rem;
+        padding: 1rem;
         cursor: pointer;
         transition: all 0.3s ease;
+
+        @media (max-width: #{$signal-engine-collapse-width}) {
+            flex: 1 1 10rem;
+            width: auto;
+            justify-content: center;
+        }
 
         &-icon {
             font-size: var(--text-size-m);
@@ -112,9 +210,65 @@
     }
 }
 
-.signal-engine-rf-panel {
+// Faithful port of the reference's #mkt-select (asset) + #tf-select (timeframe) — reference:
+// index-335-black-bars.html, lines 11978-12004, 11649-11664 — now stacked vertically in the
+// sidebar instead of the reference's horizontal .mkt-bar row. Compacts SelectNative's default
+// form-field sizing (38px tall, built for standalone fields) down toward the reference's slim
+// toolbar look, using dbot text-size tokens rather than the reference's literal 8.5px.
+.signal-engine-toolbar {
     display: flex;
     flex-direction: column;
+    gap: 0.8rem;
+
+    // Collapsed/compact: asset + timeframe sit side by side as their own row (see
+    // .signal-engine__sidebar's row/column switch above for how this row relates to the
+    // contract-type buttons' row).
+    @media (max-width: #{$signal-engine-collapse-width}) {
+        flex-direction: row;
+        flex-wrap: wrap;
+        flex: 1;
+        min-width: 20rem;
+    }
+
+    &__select {
+        width: 100%;
+        min-width: 0;
+
+        @media (max-width: #{$signal-engine-collapse-width}) {
+            flex: 1 1 14rem;
+        }
+
+        .dc-select-native__container {
+            border-color: var(--border-normal);
+            border-radius: 0.8rem;
+        }
+
+        .dc-select-native__wrapper,
+        .dc-select-native__display,
+        .dc-select-native__picker {
+            height: 3.6rem;
+        }
+
+        .dc-select-native__display-text {
+            font-size: var(--text-size-xs);
+            line-height: 3.6rem;
+        }
+
+        .dc-select-native__placeholder {
+            font-size: var(--text-size-xxs);
+            top: 0.7rem;
+        }
+    }
+}
+
+.signal-engine-rf-panel {
+    // flex: 1 + min-height: 0 so this panel (and in turn its chart child, also flex: 1) fills
+    // .signal-engine__main exactly instead of sizing to content — the "fill the entire main
+    // area" requirement for the chart-only Rise/Fall view.
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
     gap: 1.2rem;
 
     &__loading {
@@ -139,9 +293,13 @@
 // clientHeight at mount time, and a 0-height container (e.g. one relying on a % height that
 // bottoms out at `auto` up an unbounded ancestor chain) silently renders nothing.
 .signal-engine-chart {
+    // flex: 1 (not a fixed/viewport-relative height) so this fills .signal-engine-rf-panel's
+    // — and in turn .signal-engine__main's — full available height in the two-column layout.
+    // min-height is a defensive floor only, in case the flex chain above doesn't fully
+    // resolve (e.g. extremely short viewports).
     width: 100%;
-    height: 32rem;
-    min-height: 30rem;
+    flex: 1;
+    min-height: 24rem;
     border-radius: 1.4rem;
     overflow: hidden;
     background: var(--general-main-1);
@@ -589,8 +747,13 @@
 // Faithful port of the OVER/UNDER group cards (reference: index-335-black-bars.html,
 // lines 14177-14189).
 .signal-engine-ou-panel {
+    // flex-shrink: 0: this panel's natural content height can exceed .signal-engine__main's
+    // available space (barrier grid + heat grid + group cards + run meter stack up); without
+    // this, the flex-column __main would try to shrink it to fit instead of letting __main's
+    // own overflow-y: auto scroll to it at full height.
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
     gap: 1.2rem;
 }
 
@@ -663,8 +826,10 @@
 // Faithful port of #eo-signal / #eo-even-cells / #eo-consec (reference:
 // index-335-black-bars.html, lines 14282-14365).
 .signal-engine-eo-panel {
+    // Same flex-shrink: 0 rationale as .signal-engine-ou-panel above.
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
     gap: 1.2rem;
 }
 

@@ -18,8 +18,10 @@ const OverUnderPanel = observer(() => {
 
     if (!full_history.length) {
         return (
-            <div className='signal-engine-rf-panel__loading'>
-                <Localize i18n_default_text='Gathering market data…' />
+            <div className='signal-engine-ou-panel'>
+                <div className='signal-engine-rf-panel__loading'>
+                    <Localize i18n_default_text='Gathering market data…' />
+                </div>
             </div>
         );
     }

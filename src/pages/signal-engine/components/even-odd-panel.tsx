@@ -15,8 +15,10 @@ const EvenOddPanel = observer(() => {
 
     if (!full_history.length) {
         return (
-            <div className='signal-engine-rf-panel__loading'>
-                <Localize i18n_default_text='Gathering market data…' />
+            <div className='signal-engine-eo-panel'>
+                <div className='signal-engine-rf-panel__loading'>
+                    <Localize i18n_default_text='Gathering market data…' />
+                </div>
             </div>
         );
     }

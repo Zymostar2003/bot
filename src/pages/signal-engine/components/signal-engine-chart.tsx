@@ -23,13 +23,25 @@ const VISIBLE_BARS = 80;
 // 12679-12748). The VFPI sub-pane (`#vfp-pane`) and indicator toggle bar (`#ind-toggle-bar`)
 // are `display:none !important` / `display:none` dead code in the reference — never shown,
 // never toggled — and are not ported, same as the "Patterns room" precedent.
+// Reads from document.body, not document.documentElement: the .theme--light/.theme--dark
+// classes that actually define --general-main-1 and friends are applied to <body>
+// (MainBody, src/components/layout/main-body/index.tsx), not <html>. CSS custom properties
+// only cascade down the DOM tree, so document.documentElement's computed style never sees
+// them — every token read here was silently missing and falling back to the hardcoded dark
+// defaults below regardless of the active theme.
 const readToken = (name: string, fallback: string) => {
     if (typeof window === 'undefined') return fallback;
-    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const value = getComputedStyle(document.body).getPropertyValue(name).trim();
     return value || fallback;
 };
 
 const buildChartOptions = () => ({
+    // Lets lightweight-charts own an internal ResizeObserver on the container and keep the
+    // canvas matched to it — a fixed width/height read once at mount (the previous approach)
+    // locks the canvas to whatever the container's width happened to be at that instant,
+    // which is wrong when the container was still being laid out (e.g. a flex item that
+    // hadn't yet claimed its full row width — see .signal-engine's `width: 100%` fix).
+    autoSize: true,
     layout: {
         background: { type: ColorType.Solid, color: readToken('--general-main-1', '#0e0e11') },
         textColor: readToken('--text-less-prominent', '#818181'),
@@ -50,8 +62,13 @@ const buildChartOptions = () => ({
         fixLeftEdge: false,
         fixRightEdge: false,
     },
-    handleScroll: true,
-    handleScale: true,
+    // Disabling vertical touch-drag panning and wheel/pinch zoom stops the chart from
+    // capturing the gestures a user actually means for the page (mouse wheel over the chart
+    // otherwise zooms it instead of scrolling .signal-engine__main). Horizontal panning
+    // (pressedMouseMove, horzTouchDrag, axisPressedMouseMove) is left at its default so the
+    // chart is still draggable left/right and the price/time axes are still adjustable.
+    handleScroll: { vertTouchDrag: false },
+    handleScale: { axisDoubleClickReset: false, mouseWheel: false, pinch: false },
 });
 
 const toCandleData = (candles: TCandle[]): CandlestickData<Time>[] =>
@@ -96,11 +113,7 @@ const SignalEngineChart = observer(() => {
         const container = container_ref.current;
         if (!container) return undefined;
 
-        const chart = createChart(container, {
-            ...buildChartOptions(),
-            width: container.clientWidth,
-            height: container.clientHeight,
-        });
+        const chart = createChart(container, buildChartOptions());
         const candle_series = chart.addCandlestickSeries({
             upColor: readToken('--status-success', '#00c853'),
             downColor: readToken('--status-danger', '#ff5252'),
@@ -139,16 +152,7 @@ const SignalEngineChart = observer(() => {
         graviton_series_ref.current = graviton_series;
         pulse_series_ref.current = pulse_series;
 
-        const resize_observer = new ResizeObserver(entries => {
-            const entry = entries[0];
-            if (!entry) return;
-            const { width, height } = entry.contentRect;
-            if (width > 0 && height > 0) chart.resize(width, height);
-        });
-        resize_observer.observe(container);
-
         return () => {
-            resize_observer.disconnect();
             chart.remove();
             chart_ref.current = null;
             candle_series_ref.current = null;
