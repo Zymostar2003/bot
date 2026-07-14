@@ -6,11 +6,10 @@
  */
 
 // dbot's own mobile-or-tablet-screen/mobile-screen mixins (components/shared/styles/
-// _devices.scss) are tuned to 1280px/600px, which don't match the ~1024px/~640px thresholds
-// this page's two-column-to-stacked collapse needs — using plain @media queries here instead,
+// _devices.scss) are tuned to 1280px/600px, which don't match the ~1024px threshold this
+// page's two-column-to-stacked collapse needs — using a plain @media query here instead,
 // scoped to this component only, per the "otherwise use standard @media queries" fallback.
 $signal-engine-collapse-width: 1024px;
-$signal-engine-compact-width: 640px;
 
 @keyframes signal-engine-glow-up {
     0%,
@@ -67,15 +66,17 @@ $signal-engine-compact-width: 640px;
         height: calc(100vh - 11rem);
     }
 
-    &__header {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        margin-bottom: 1.2rem;
-        flex-shrink: 0;
-    }
-
+    // Lives inside __tabs now, alongside the RF/OU/EO buttons, instead of its own separate
+    // header row above the sidebar — one less stacked block competing for vertical space
+    // when __body collapses to a column at narrow widths (see __body/__sidebar below), which
+    // was pushing __main's chart under its min-height floor and making it look clipped.
+    // align-self: flex-start stops it from stretching to fill __tabs' cross-axis (width in
+    // the desktop column layout, height in the collapsed row layout) the way a bare flex
+    // child would by default — it stays compact either way instead of matching the RF/OU/EO
+    // buttons' full size.
     &__sound-toggle {
+        align-self: flex-start;
+        flex-shrink: 0;
         background: var(--general-section-1);
         border: 1px solid var(--border-normal);
         border-radius: 0.8rem;
@@ -105,11 +106,14 @@ $signal-engine-compact-width: 640px;
         }
     }
 
-    // Desktop: a narrow fixed vertical column (SmartCharts drawing-tools style). Collapsed:
-    // becomes a horizontal bar — asset select, timeframe select, and the 3 contract-type
-    // buttons all in one wrapping row (see __tabs/.signal-engine-toolbar's own breakpoints
-    // below). Compact: that bar splits back into two stacked rows — dropdowns, then buttons
-    // — since 5 controls no longer fit one row at phone widths.
+    // Desktop: a narrow fixed vertical column (SmartCharts drawing-tools style) — one
+    // navigable bar holding the asset/timeframe pickers, the contract-type switcher, and the
+    // sound toggle together. Collapsed: the same bar turns horizontal and wraps — the asset
+    // select, timeframe select, RF/OU/EO buttons, and sound toggle flow onto as many lines as
+    // the viewport actually needs (via flex-wrap on both this and its two child groups'
+    // own collapsed rules below), rather than a hardcoded "two rows below a fixed width"
+    // split — one less rigid breakpoint, and it degrades gracefully all the way down instead
+    // of a phone-width cliff.
     &__sidebar {
         display: flex;
         flex-direction: column;
@@ -124,10 +128,6 @@ $signal-engine-compact-width: 640px;
             flex-wrap: wrap;
             align-items: flex-start;
             overflow-y: visible;
-        }
-
-        @media (max-width: #{$signal-engine-compact-width}) {
-            flex-direction: column;
         }
     }
 
@@ -159,9 +159,9 @@ $signal-engine-compact-width: 640px;
         flex-direction: column;
         gap: 0.6rem;
 
-        // Collapsed/compact: the 3 buttons form their own row (wrapping if a phone-width
-        // viewport can't fit all 3), sitting below the dropdowns' row per __sidebar's own
-        // row/column switch above.
+        // Collapsed: the 3 tab buttons + sound toggle form their own group within
+        // __sidebar's wrapping row, itself wrapping onto more lines if a phone-width
+        // viewport can't fit them (min-width forces that — see __sidebar's own comment).
         @media (max-width: #{$signal-engine-collapse-width}) {
             flex-direction: row;
             flex-wrap: wrap;
@@ -220,9 +220,8 @@ $signal-engine-compact-width: 640px;
     flex-direction: column;
     gap: 0.8rem;
 
-    // Collapsed/compact: asset + timeframe sit side by side as their own row (see
-    // .signal-engine__sidebar's row/column switch above for how this row relates to the
-    // contract-type buttons' row).
+    // Collapsed: asset + timeframe form their own group within __sidebar's wrapping row,
+    // itself wrapping onto its own line if there's no room alongside the tabs/sound group.
     @media (max-width: #{$signal-engine-collapse-width}) {
         flex-direction: row;
         flex-wrap: wrap;

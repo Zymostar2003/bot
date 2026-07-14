@@ -26,17 +26,6 @@ const SignalEngine = observer(() => {
 
     return (
         <div className='signal-engine'>
-            <div className='signal-engine__header'>
-                <button
-                    type='button'
-                    className='signal-engine__sound-toggle'
-                    onClick={toggleSound}
-                    aria-pressed={sound_enabled}
-                    aria-label={localize('Toggle signal sound')}
-                >
-                    {sound_enabled ? '🔊' : '🔇'}
-                </button>
-            </div>
             <div className='signal-engine__body'>
                 <aside className='signal-engine__sidebar'>
                     <SignalEngineToolbar />
@@ -57,6 +46,15 @@ const SignalEngine = observer(() => {
                                 <span className='signal-engine__tab-label'>{tab.label}</span>
                             </button>
                         ))}
+                        <button
+                            type='button'
+                            className='signal-engine__sound-toggle'
+                            onClick={toggleSound}
+                            aria-pressed={sound_enabled}
+                            aria-label={localize('Toggle signal sound')}
+                        >
+                            {sound_enabled ? '🔊' : '🔇'}
+                        </button>
                     </div>
                 </aside>
                 <main className='signal-engine__main'>
