@@ -100,7 +100,7 @@ export default class TicksService {
 
             const key = getUUID();
             this.request(options)
-                .then(() => {
+                .then(res => {
                     if (type === 'ticks') {
                         this.tickListeners = this.tickListeners.setIn([symbol, key], callback);
                         globalObserver.emit('bot.bot_ready');
@@ -108,6 +108,13 @@ export default class TicksService {
                     } else {
                         this.ohlcListeners = this.ohlcListeners.setIn([symbol, Number(granularity), key], callback);
                     }
+                    // request() already fetched (and internally broadcast) this data before
+                    // the listener above was registered, so without this the caller's
+                    // callback would only fire on the *next* live tick/candle — unnoticeable
+                    // for fast-ticking symbols, but a real hang for slow ones (e.g. Jump
+                    // Indices can go a minute+ between ticks) since callers render "waiting
+                    // for data" until their first callback call.
+                    callback(res);
                     resolve(key);
                 })
                 .catch(e => {
