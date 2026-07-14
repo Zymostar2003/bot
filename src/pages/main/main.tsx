@@ -22,6 +22,7 @@ import {
     LabelPairedChartLineCaptionRegularIcon,
     LabelPairedObjectsColumnCaptionRegularIcon,
     LabelPairedPuzzlePieceTwoCaptionBoldIcon,
+    LabelPairedSearchCaptionRegularIcon,
 } from '@deriv/quill-icons/LabelPaired';
 import { LegacyGuide1pxIcon } from '@deriv/quill-icons/Legacy';
 import { requestOidcAuthentication } from '@deriv-com/auth-client';
@@ -36,6 +37,8 @@ import './main.scss';
 const ChartWrapper = lazy(() => import('../chart/chart-wrapper'));
 const Tutorial = lazy(() => import('../tutorials'));
 const SignalEngine = lazy(() => import('../signal-engine'));
+const SmartAnalysis = lazy(() => import('../smart-analysis'));
+const Scanner = lazy(() => import('../scanner'));
 
 const AppWrapper = observer(() => {
     const { connectionStatus } = useApiBase();
@@ -67,7 +70,7 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'signal_engine', 'smart_analysis'];
+    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'signal_engine', 'smart_analysis', 'scanner'];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -86,7 +89,7 @@ const AppWrapper = observer(() => {
 
     React.useEffect(() => {
         const el_dashboard = document.getElementById('id-dbot-dashboard');
-        const el_last_tab = document.getElementById('id-smart-analysis');
+        const el_last_tab = document.getElementById('id-scanner');
 
         const observer_dashboard = new window.IntersectionObserver(
             ([entry]) => {
@@ -361,9 +364,32 @@ const AppWrapper = observer(() => {
                                 </Suspense>
                             </div>
                             <div label={<Localize i18n_default_text='Smart Analysis' />} id='id-smart-analysis'>
-                                <div className='tab-placeholder'>
-                                    <Localize i18n_default_text='Smart Analysis' />
-                                </div>
+                                <Suspense
+                                    fallback={
+                                        <ChunkLoader message={localize('Please wait, loading smart analysis...')} />
+                                    }
+                                >
+                                    <SmartAnalysis />
+                                </Suspense>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedSearchCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='Scanner' />
+                                    </>
+                                }
+                                id='id-scanner'
+                            >
+                                <Suspense
+                                    fallback={<ChunkLoader message={localize('Please wait, loading scanner...')} />}
+                                >
+                                    <Scanner />
+                                </Suspense>
                             </div>
                         </Tabs>
                         {!isDesktop && right_tab_shadow && <span className='tabs-shadow tabs-shadow--right' />}{' '}

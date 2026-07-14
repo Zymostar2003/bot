@@ -52,5 +52,23 @@ module.exports = {
                 'alpha-value-notation': null,
             },
         },
+        {
+            // Smart Analysis ports literal rgba() from its reference implementation, same
+            // rationale as the Signal Engine override above.
+            files: ['src/pages/smart-analysis/**/*.scss'],
+            rules: {
+                'color-function-notation': null,
+                'alpha-value-notation': null,
+            },
+        },
+        {
+            // Scanner follows the same convention as Signal Engine above: literal rgba()
+            // for quality/status tint alphas ported from the reference implementation.
+            files: ['src/pages/scanner/**/*.scss'],
+            rules: {
+                'color-function-notation': null,
+                'alpha-value-notation': null,
+            },
+        },
     ],
 };

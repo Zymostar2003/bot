@@ -1,0 +1,589 @@
+@use 'components/shared/styles/constants' as *;
+@use 'components/shared/styles/mixins' as *;
+
+/**
+ * @define smart-analysis
+ */
+
+// Same rationale as signal-engine.scss's own $signal-engine-collapse-width: dbot's
+// mobile-or-tablet-screen/mobile-screen mixins are tuned to 1280px/600px, which don't match
+// this page's own stacking needs — plain @media queries, scoped to this file only.
+$smart-analysis-compact-width: 640px;
+
+.smart-analysis {
+    // Same viewport-anchoring technique as signal-engine.scss's `.signal-engine` root (see
+    // that file's block comment for the full ancestor-chain rationale) — this panel's parent
+    // chain is all auto-height, so it needs a bounded height of its own to scroll within
+    // rather than growing until `.main`'s overflow: hidden clips it.
+    box-sizing: border-box;
+    width: 100%;
+    padding: 1.6rem;
+    height: calc(100vh - 17.2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    overflow: hidden;
+
+    @include mobile-or-tablet-screen {
+        height: calc(100vh - 11rem);
+    }
+
+    &__body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+
+        // Clears dbot's global mobile Run/Stop bar (.controls__section, run-panel.scss) —
+        // position: fixed, bottom: 0, full width — same rationale as signal-engine.scss's
+        // `.signal-engine__main` padding-bottom.
+        padding-bottom: 7.6rem;
+    }
+}
+
+// Faithful port of .sa-market-bar's two-dropdown row (reference:
+// index-335-black-bars.html, lines 4485-4522).
+.smart-analysis-market-bar {
+    display: flex;
+    gap: 0.8rem;
+    flex-shrink: 0;
+
+    &__select {
+        min-width: 0;
+
+        &--category {
+            flex: 0 0 42%;
+        }
+
+        &--asset {
+            flex: 1;
+        }
+
+        .dc-select-native__container {
+            border-color: var(--border-normal);
+            border-radius: 0.8rem;
+        }
+
+        .dc-select-native__wrapper,
+        .dc-select-native__display,
+        .dc-select-native__picker {
+            height: 3.6rem;
+        }
+
+        .dc-select-native__display-text {
+            font-size: var(--text-size-xs);
+            line-height: 3.6rem;
+        }
+
+        .dc-select-native__placeholder {
+            font-size: var(--text-size-xxs);
+            top: 0.7rem;
+        }
+    }
+}
+
+// Faithful port of .sa-contract-grid / .sa-contract-btn (reference:
+// index-335-black-bars.html, lines 4525-4530, 1290-1325).
+.smart-analysis-contract-nav {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-normal);
+
+    &__btn {
+        flex: 1 1 12rem;
+        padding: 0.8rem 1rem;
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.04rem;
+        color: var(--text-less-prominent);
+        background: transparent;
+        border: none;
+        border-bottom: 2.5px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &--active {
+            color: var(--status-success);
+            border-bottom-color: var(--status-success);
+        }
+    }
+}
+
+// Faithful port of #sa-live-price (reference: index-335-black-bars.html, line 4535,
+// 11089-11091).
+.smart-analysis-live-price {
+    font-size: 3.2rem;
+    font-weight: 800;
+    text-align: center;
+    margin: 0.4rem 0 0;
+    color: var(--text-general);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+
+    &__digit {
+        color: var(--status-success);
+    }
+}
+
+// Faithful port of #sa-view-toggle (reference: index-335-black-bars.html, lines 4538-4580).
+.smart-analysis-view-toggle {
+    display: flex;
+    border-bottom: 1px solid var(--border-normal);
+    flex-shrink: 0;
+
+    &__tab {
+        flex: 1;
+        text-align: center;
+        padding: 1rem 0;
+        font-size: var(--text-size-xxs);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05rem;
+        cursor: pointer;
+        color: var(--text-less-prominent);
+        background: transparent;
+        border: none;
+        border-bottom: 2.5px solid transparent;
+
+        &--active {
+            color: var(--status-success);
+            border-bottom-color: var(--status-success);
+        }
+    }
+}
+
+.smart-analysis-loading {
+    padding: 2.4rem;
+    text-align: center;
+    color: var(--text-less-prominent);
+    font-size: var(--text-size-xs);
+}
+
+// Faithful port of #sa-digit-panel / .digit-group / .digit-circle / rank-1/2/last (reference:
+// index-335-black-bars.html, lines 4586-4612, 1863-1895).
+.smart-analysis-digit-panel {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2rem 0.8rem;
+    padding: 1.6rem 0.4rem 0.4rem;
+    flex-shrink: 0;
+
+    &__cell {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    // Structural change from the reference's saMoveCursor: rendered inline in the current
+    // digit's own cell (position: relative on the cell) instead of one shared
+    // absolutely-positioned element whose left/top the reference computes from
+    // offsetLeft/offsetWidth — see digit-stats-panel.tsx's comment for why.
+    &__cursor {
+        position: absolute;
+        top: -1.3rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 0.8rem solid transparent;
+        border-right: 0.8rem solid transparent;
+        border-top: 1.2rem solid var(--status-success);
+    }
+
+    &__circle {
+        width: 4.2rem;
+        height: 4.2rem;
+        border-radius: 50%;
+        background: var(--general-section-1);
+        border: 1px solid var(--border-normal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: var(--text-size-s);
+        color: var(--text-general);
+        margin-bottom: 0.4rem;
+
+        &--top {
+            background: var(--status-success);
+            border-color: var(--status-success);
+            color: var(--text-colored-background);
+        }
+
+        &--second {
+            background: var(--status-warning);
+            border-color: var(--status-warning);
+            color: var(--text-colored-background);
+        }
+
+        &--bottom {
+            background: var(--status-danger);
+            border-color: var(--status-danger);
+            color: var(--text-colored-background);
+        }
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-general);
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+.smart-analysis-last-50 {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    flex-shrink: 0;
+
+    // Faithful port of #sa-stat-left/#sa-stat-right (reference:
+    // index-335-black-bars.html, lines 4629-4644, 11405-11408).
+    &__stats {
+        display: flex;
+        justify-content: space-around;
+        font-weight: bold;
+        font-size: var(--text-size-xs);
+        text-transform: uppercase;
+        color: var(--text-general);
+        border-bottom: 1px solid var(--border-normal);
+        padding-bottom: 0.8rem;
+    }
+
+    &__meters {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+
+        @media (min-width: #{$smart-analysis-compact-width}) {
+            flex-direction: row;
+
+            .smart-analysis-meter-card {
+                flex: 1;
+            }
+        }
+    }
+}
+
+// Own simpler barrier-digit picker (no direction toggle) — see digit-picker.tsx's comment.
+// Visual pattern mirrors signal-engine-barrier-selector's grid without importing/modifying it.
+.smart-analysis-digit-picker {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 0.4rem;
+
+    &__btn {
+        padding: 0.6rem 0.2rem;
+        border-radius: 0.6rem;
+        border: 1.5px solid var(--border-normal);
+        background: var(--general-section-1);
+        color: var(--text-general);
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &--selected {
+            border-color: var(--status-warning);
+            background: rgba(255, 145, 0, 0.12);
+            color: var(--status-warning);
+        }
+
+        &--reset {
+            color: var(--status-danger);
+        }
+    }
+}
+
+.smart-analysis-meter-card {
+    background: var(--general-main-1);
+    border: 1px solid var(--border-normal);
+    border-radius: 1.4rem;
+    padding: 1.2rem;
+
+    &__title {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.15rem;
+        color: var(--text-less-prominent);
+        margin-bottom: 0.8rem;
+    }
+}
+
+// Faithful port of #sa-concentration-card (reference: index-335-black-bars.html, lines
+// 4658-4708, 11250-11341).
+.smart-analysis-concentration {
+    flex-shrink: 0;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.8rem;
+    }
+
+    &__title {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.1rem;
+        color: var(--text-less-prominent);
+    }
+
+    &__spread {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+
+        &--even {
+            color: var(--text-less-prominent);
+        }
+
+        &--slight {
+            color: var(--status-warning);
+        }
+
+        &--high {
+            color: var(--status-success);
+        }
+    }
+
+    &__bars {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 0.3rem;
+        align-items: end;
+        margin-bottom: 1.2rem;
+    }
+
+    &__bar-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    &__bar-track {
+        display: flex;
+        align-items: flex-end;
+        height: 5.4rem;
+        width: 100%;
+    }
+
+    &__bar-fill {
+        width: 100%;
+        border-radius: 0.3rem 0.3rem 0 0;
+
+        &--hot {
+            background: var(--status-success);
+        }
+
+        &--cold {
+            background: var(--status-danger);
+        }
+
+        &--neutral {
+            background: var(--border-normal);
+        }
+    }
+
+    &__bar-digit {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+        line-height: 1;
+    }
+
+    &__bar-pct {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+        line-height: 1;
+    }
+
+    &__summary {
+        font-size: var(--text-size-xxs);
+        line-height: 1.6;
+        color: var(--text-less-prominent);
+    }
+
+    &__hot {
+        color: var(--status-success);
+    }
+
+    &__cold {
+        color: var(--status-danger);
+    }
+
+    // Faithful port of the psychology note box (reference: index-335-black-bars.html,
+    // lines 4691-4707) — literal warning-tint alpha, same rationale as signal-engine.scss's
+    // own literal rgba() usage (see .stylelintrc.cjs override for this directory).
+    &__trap {
+        margin-top: 0.8rem;
+        padding: 0.8rem 1rem;
+        background: rgba(255, 145, 0, 0.08);
+        border-left: 3px solid var(--status-warning);
+        border-radius: 0 0.8rem 0.8rem 0;
+    }
+
+    &__trap-title {
+        font-size: var(--text-size-xxs);
+        font-weight: 800;
+        color: var(--status-warning);
+        margin-bottom: 0.3rem;
+    }
+
+    &__trap-text {
+        font-size: var(--text-size-xxs);
+        line-height: 1.6;
+        color: var(--text-less-prominent);
+    }
+}
+
+// Faithful port of #sa-insight-card (reference: index-335-black-bars.html, lines 4710-4730,
+// 11513-11517).
+.smart-analysis-insight {
+    border-left: 3px solid var(--status-success);
+    padding: 1rem 1.4rem;
+    margin-bottom: 1.2rem;
+    flex-shrink: 0;
+
+    &__title {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.1rem;
+        color: var(--status-success);
+        margin-bottom: 0.6rem;
+    }
+
+    &__list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        font-size: var(--text-size-xs);
+        line-height: 1.6;
+        color: var(--text-general);
+    }
+
+    &__waiting {
+        font-size: var(--text-size-xs);
+        color: var(--text-less-prominent);
+    }
+
+    &__over {
+        color: var(--status-success);
+    }
+
+    &__under {
+        color: var(--status-danger);
+    }
+}
+
+// ── Reused-component styles ──
+// DigitStrip and RunMeter (src/pages/signal-engine/components/) are imported directly by
+// last-50-panel.tsx per this feature's reuse plan, but their class names' styles live in
+// signal-engine.scss, which is only ever bundled into the Signal Engine page chunk. Smart
+// Analysis's own chunk can be loaded without Signal Engine ever having mounted, so these two
+// rule blocks are mirrored here verbatim (from signal-engine.scss) rather than assuming that
+// file's styles are already on the page.
+
+// Faithful port of .signal-engine-digit-strip (signal-engine.scss, wormDigitHTML/
+// wormParityHTML port — reference: index-335-black-bars.html, lines 13601-13619).
+.signal-engine-digit-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+
+    &__dot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-colored-background);
+    }
+}
+
+// Faithful port of .signal-engine-run-meter (signal-engine.scss, runMeterHTML port —
+// reference: index-335-black-bars.html, lines 7103-7120).
+.signal-engine-run-meter {
+    &__dots {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.6rem;
+    }
+
+    &__dot {
+        flex: 1;
+        height: 2.4rem;
+        border-radius: 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        background: var(--general-section-2);
+        border: 1px solid var(--border-normal);
+        color: var(--text-less-prominent);
+
+        &--active {
+            background: var(--rm-color);
+            border-color: var(--rm-color);
+            color: var(--text-colored-background);
+        }
+
+        &--max {
+            box-shadow: 0 0 8px var(--rm-color);
+        }
+    }
+
+    &__summary {
+        display: flex;
+        justify-content: space-between;
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-general);
+        margin-bottom: 0.5rem;
+    }
+
+    &__bar {
+        height: 0.6rem;
+        border-radius: 0.3rem;
+        background: var(--general-section-2);
+        overflow: hidden;
+    }
+
+    &__bar-fill {
+        height: 100%;
+        border-radius: 0.3rem;
+        transition: width 0.3s ease;
+
+        &--success {
+            background: var(--status-success);
+        }
+
+        &--danger {
+            background: var(--status-danger);
+        }
+
+        &--warning {
+            background: var(--status-warning);
+        }
+
+        &--muted {
+            background: var(--text-less-prominent);
+        }
+    }
+}

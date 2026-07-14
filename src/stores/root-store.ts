@@ -13,8 +13,10 @@ import LoadModalStore from './load-modal-store';
 import QuickStrategyStore from './quick-strategy-store';
 import RunPanelStore from './run-panel-store';
 import SaveModalStore from './save-modal-store';
+import ScannerStore from './scanner-store';
 import SelfExclusionStore from './self-exclusion-store';
 import SignalEngineStore from './signal-engine-store';
+import SmartAnalysisStore from './smart-analysis-store';
 import SummaryCardStore from './summary-card-store';
 import ToolbarStore from './toolbar-store';
 import ToolboxStore from './toolbox-store';
@@ -44,6 +46,8 @@ export default class RootStore {
     public blockly_store: BlocklyStore;
     public data_collection_store: DataCollectionStore;
     public signal_engine: SignalEngineStore;
+    public smart_analysis: SmartAnalysisStore;
+    public scanner: ScannerStore;
 
     public ui: UiStore;
     public client: ClientStore;
@@ -88,5 +92,11 @@ export default class RootStore {
         this.data_collection_store = new DataCollectionStore(this, this.core);
         // depends on chart_store.symbol as its one-time initial default (see SignalEngineStore.initDefaultSymbol)
         this.signal_engine = new SignalEngineStore(this);
+        // No chart_store dependency — auto-selects the first symbol in its own category-filtered
+        // list once available_symbols loads (see SmartAnalysisStore's constructor reaction).
+        this.smart_analysis = new SmartAnalysisStore(this);
+        // Depends on this.quick_strategy (already constructed above) for its apply-to-bot
+        // write path (ScannerStore.confirmApply -> quick_strategy.applySignalFromScanner).
+        this.scanner = new ScannerStore(this);
     }
 }
