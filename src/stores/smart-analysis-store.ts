@@ -96,10 +96,20 @@ export default class SmartAnalysisStore {
         this.root_store = root_store;
 
         // Same api_base.init()/RootStore-construction race as SignalEngineStore — TicksService
-        // must not be created until the connection is confirmed OPENED.
+        // must not be created until the connection is confirmed OPENED. Also calls
+        // startMonitoring() directly here (matching SignalEngineStore's own subscription
+        // exactly) rather than relying solely on the "auto-select first symbol" reaction
+        // below — that reaction is guarded by has_set_initial_symbol to only ever fire ONCE
+        // per app lifetime, so on a reconnect (a dropped connection reopening, not just the
+        // very first connect) it would never fire again and monitoring would never resume,
+        // permanently freezing this page on stale data. startMonitoring() itself no-ops
+        // harmlessly if this.symbol is still empty (the very first connect, before the
+        // reaction has picked an initial symbol yet), so this is safe to call unconditionally
+        // on every OPENED event.
         this.connection_subscription = connectionStatus$.subscribe(status => {
             if (status === CONNECTION_STATUS.OPENED && api_base.api) {
                 this.loadAvailableSymbols();
+                this.startMonitoring();
             }
         });
 
@@ -199,10 +209,25 @@ export default class SmartAnalysisStore {
             this.ticks_service = new TicksService();
         }
 
+        // Captured so the callback/`.then()` below can tell whether they're still relevant
+        // once they actually resolve — TicksService.monitor() now delivers its initial
+        // history batch as soon as it's fetched (see ticks_service.js's monitor() fix)
+        // rather than waiting for the next live tick, which means a slow response for a
+        // symbol the user has since switched away from can otherwise land AFTER a faster
+        // response for the new symbol and silently overwrite it with stale data.
+        const symbol = this.symbol;
+
         this.ticks_service
-            .monitor({ symbol: this.symbol, granularity: undefined, callback: this.onTicksUpdate })
+            .monitor({
+                symbol,
+                granularity: undefined,
+                callback: ticks => {
+                    if (this.symbol !== symbol) return; // superseded by a newer setSymbol call
+                    this.onTicksUpdate(ticks);
+                },
+            })
             .then(key => {
-                this.tick_monitor_key = key;
+                if (this.symbol === symbol) this.tick_monitor_key = key;
             });
 
         this.setSubscribed(true);
