@@ -89,14 +89,4 @@ export type TScannerFilterFlags = {
     pctDiffMode: boolean;
 };
 
-// Signal-only payload passed to QuickStrategyStore.applySignalFromScanner — deliberately
-// excludes every risk/money-management field (stake, size/unit, take_profit, loss,
-// tick_count, max_stake, growth_rate); see that method's own boundary comment.
-export type TScannerSignal = {
-    symbol: string;
-    tradetype: string;
-    contractType: TContractType;
-    prediction?: number;
-};
-
 export type { TDigitPct, TFullHistoryTick };

@@ -10,7 +10,7 @@ type TScannerResultRowProps = {
     // Used by the Market Watch fallback (scanner-results.tsx) to render REJECT-quality
     // candidates without Apply/Dismiss — applying a non-qualifying combo to the bot would be
     // actively misleading, see the signal-only boundary in
-    // QuickStrategyStore.applySignalFromScanner.
+    // TradeSetupStore.applyFromScanner.
     readOnly?: boolean;
 };
 

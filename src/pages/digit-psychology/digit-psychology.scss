@@ -1,0 +1,687 @@
+@use 'components/shared/styles/constants' as *;
+@use 'components/shared/styles/mixins' as *;
+
+/**
+ * @define digit-psychology
+ */
+
+// Over/Under and Even/Odd's own layout/content CSS, moved here (renamed to a
+// digit-psychology- prefix) from signal-engine.scss when they were split out of Signal
+// Engine into their own tab — see digit-psychology.tsx's header comment. Layout/viewport-
+// anchoring technique matches every other dashboard-tab page this session (see
+// signal-engine.scss's `.signal-engine` block comment for the full ancestor-chain
+// rationale).
+$digit-psychology-collapse-width: 1024px;
+
+.digit-psychology {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 1.6rem;
+    height: calc(100vh - 17.2rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    @include mobile-or-tablet-screen {
+        height: calc(100vh - 11rem);
+    }
+
+    &__body {
+        display: flex;
+        gap: 1.2rem;
+        flex: 1;
+        min-height: 0;
+
+        @media (max-width: #{$digit-psychology-collapse-width}) {
+            flex-direction: column;
+        }
+    }
+
+    &__sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+        width: 20rem;
+        flex-shrink: 0;
+        overflow-y: auto;
+
+        @media (max-width: #{$digit-psychology-collapse-width}) {
+            width: 100%;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            overflow-y: visible;
+        }
+    }
+
+    &__asset-select {
+        width: 100%;
+        min-width: 0;
+
+        @media (max-width: #{$digit-psychology-collapse-width}) {
+            flex: 1 1 14rem;
+        }
+
+        .dc-select-native__container {
+            border-color: var(--border-normal);
+            border-radius: 0.8rem;
+        }
+
+        .dc-select-native__wrapper,
+        .dc-select-native__display,
+        .dc-select-native__picker {
+            height: 3.6rem;
+        }
+
+        .dc-select-native__display-text {
+            font-size: var(--text-size-xs);
+            line-height: 3.6rem;
+        }
+
+        .dc-select-native__placeholder {
+            font-size: var(--text-size-xxs);
+            top: 0.7rem;
+        }
+    }
+
+    // padding-bottom clears dbot's global fixed mobile Run/Stop bar — same rationale as
+    // signal-engine.scss's __main.
+    &__main {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding-bottom: 7.6rem;
+    }
+
+    &__tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+
+        @media (max-width: #{$digit-psychology-collapse-width}) {
+            flex-direction: row;
+            flex-wrap: wrap;
+            flex: 1;
+            min-width: 20rem;
+        }
+    }
+
+    &__tab {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.8rem;
+        width: 100%;
+        background: var(--general-section-1);
+        border: 1.5px solid var(--border-normal);
+        border-radius: 1rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        @media (max-width: #{$digit-psychology-collapse-width}) {
+            flex: 1 1 10rem;
+            width: auto;
+            justify-content: center;
+        }
+
+        &-icon {
+            font-size: var(--text-size-m);
+        }
+
+        &-label {
+            font-size: var(--text-size-xs);
+            font-weight: bold;
+            color: var(--text-less-prominent);
+        }
+
+        &--active {
+            border-color: var(--digit-psychology-tab-accent);
+            background: var(--general-section-2);
+
+            .digit-psychology__tab-label {
+                color: var(--digit-psychology-tab-accent);
+            }
+        }
+    }
+}
+
+.digit-psychology-panel {
+    &__loading {
+        padding: 2.4rem;
+        text-align: center;
+        color: var(--text-less-prominent);
+        font-size: var(--text-size-xs);
+    }
+}
+
+// Faithful port of #ou-signal-box/#eo-signal-box's "ready" state (reference lines
+// 14192-14200, 14369-14375) — always green/success here, unlike the original signal-engine
+// version this was ported from, which read a CSS custom property (--signal-engine-accent)
+// set by an ancestor .signal-engine-group-box modifier for the Rise/Fall view's rise/fall
+// color split. Over/Under and Even/Odd's own signal boxes were never actually nested inside
+// a .signal-engine-group-box (only the now-unused RF group-box component was), so that
+// custom property was never set for them in the first place — this just makes that
+// pre-existing behaviour explicit instead of leaving an undefined var() fallback.
+.digit-psychology-signal-box {
+    margin-top: 0.8rem;
+    background: var(--general-section-2);
+    border: 1px solid var(--border-normal);
+    border-radius: 1rem;
+    padding: 0.8rem 1.2rem;
+
+    &--ready {
+        background: rgba(0, 200, 83, 0.12);
+        border: 1.5px solid var(--status-success);
+    }
+
+    &__title {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--status-success);
+        margin-bottom: 0.3rem;
+    }
+
+    &__desc {
+        font-size: var(--text-size-xxs);
+        color: var(--text-less-prominent);
+        font-weight: bold;
+    }
+}
+
+.digit-psychology-meter-card {
+    background: var(--general-main-1);
+    border: 1px solid var(--border-normal);
+    border-radius: 1.4rem;
+    padding: 1.2rem;
+
+    &__title {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.15rem;
+        color: var(--text-less-prominent);
+        margin-bottom: 0.8rem;
+    }
+}
+
+// Duplicated from signal-engine.scss rather than referenced — .signal-engine-digit-strip is
+// the shared DigitStrip component's own class name (src/pages/signal-engine/components/
+// digit-strip.tsx, reused here and by Smart Analysis's Last 50 panel unchanged), but its CSS
+// lives in signal-engine.scss's own per-page bundle, which isn't guaranteed to be loaded in
+// a session that only ever visits Digit Psychology — same rationale smart-analysis.scss's
+// own duplicate already documents.
+.signal-engine-digit-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+
+    &__dot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-colored-background);
+    }
+}
+
+// Duplicated from signal-engine.scss for the same reason as .signal-engine-digit-strip
+// above — .signal-engine-run-meter is the shared RunMeter component's own class name.
+.signal-engine-run-meter {
+    &__dots {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.6rem;
+    }
+
+    &__dot {
+        flex: 1;
+        height: 2.4rem;
+        border-radius: 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        background: var(--general-section-2);
+        border: 1px solid var(--border-normal);
+        color: var(--text-less-prominent);
+
+        &--active {
+            background: var(--rm-color);
+            border-color: var(--rm-color);
+            color: var(--text-colored-background);
+        }
+
+        &--max {
+            box-shadow: 0 0 8px var(--rm-color);
+        }
+    }
+
+    &__summary {
+        display: flex;
+        justify-content: space-between;
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-general);
+        margin-bottom: 0.5rem;
+    }
+
+    &__bar {
+        height: 0.6rem;
+        border-radius: 0.3rem;
+        background: var(--general-section-2);
+        overflow: hidden;
+    }
+
+    &__bar-fill {
+        height: 100%;
+        border-radius: 0.3rem;
+        transition: width 0.3s ease;
+
+        &--success {
+            background: var(--status-success);
+        }
+
+        &--danger {
+            background: var(--status-danger);
+        }
+
+        &--warning {
+            background: var(--status-warning);
+        }
+
+        &--muted {
+            background: var(--text-less-prominent);
+        }
+    }
+}
+
+// Faithful port of #ou-live-price/#ou-live-digit/#ou-live-verdict and their EO equivalents
+// (reference: index-335-black-bars.html, lines 14107-14130, 14284-14304).
+.digit-psychology-live-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: var(--general-section-1);
+    border-radius: 1rem;
+    padding: 0.8rem 1.2rem;
+
+    &__price {
+        font-size: var(--text-size-s);
+        font-weight: bold;
+    }
+
+    &__digit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.2rem;
+        height: 3.2rem;
+        border-radius: 0.8rem;
+        border: 1.5px solid var(--border-normal);
+        font-size: var(--text-size-s);
+        font-weight: bold;
+    }
+
+    &__verdict {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+    }
+}
+
+// Faithful port of the direction toggle + #ou-barrier-grid (reference:
+// index-335-black-bars.html, lines 14082-14090).
+.digit-psychology-barrier-selector {
+    &__dir-toggle {
+        display: flex;
+        gap: 0.8rem;
+        margin-bottom: 0.8rem;
+    }
+
+    &__dir-btn {
+        flex: 1;
+        padding: 0.8rem;
+        border-radius: 1rem;
+        border: 1.5px solid var(--border-normal);
+        background: var(--general-section-1);
+        color: var(--text-less-prominent);
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &--over.digit-psychology-barrier-selector__dir-btn--selected {
+            border-color: var(--status-success);
+            background: rgba(0, 200, 83, 0.12);
+            color: var(--status-success);
+        }
+
+        &--under.digit-psychology-barrier-selector__dir-btn--selected {
+            border-color: var(--status-danger);
+            background: rgba(255, 82, 82, 0.09);
+            color: var(--status-danger);
+        }
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.5rem;
+    }
+
+    &__btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.6rem 0.2rem;
+        border-radius: 0.8rem;
+        border: 1.5px solid var(--border-normal);
+        background: var(--general-section-1);
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &--selected {
+            border-color: var(--status-warning);
+            background: rgba(255, 145, 0, 0.12);
+        }
+    }
+
+    &__digit {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+    }
+}
+
+// Faithful port of #ou-dgrid (reference: index-335-black-bars.html, lines 14150-14159).
+.digit-psychology-digit-heat-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+
+    &__cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.6rem 0.2rem;
+        border-radius: 0.8rem;
+        color: var(--text-colored-background);
+
+        &--highlighted {
+            border: 2px solid var(--text-colored-background);
+        }
+    }
+
+    &__digit {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxxs);
+    }
+
+    &__arrow {
+        font-size: var(--text-size-xxxs);
+    }
+}
+
+// Faithful port of the OVER/UNDER group cards (reference: index-335-black-bars.html,
+// lines 14177-14189).
+.digit-psychology-ou-panel {
+    // flex-shrink: 0: this panel's natural content height can exceed __main's available
+    // space (barrier grid + heat grid + group cards + run meter stack up); without this, the
+    // flex-column __main would try to shrink it to fit instead of letting __main's own
+    // overflow-y: auto scroll to it at full height.
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 1.2rem;
+}
+
+.digit-psychology-ou-group {
+    border: 2px solid var(--border-normal);
+    border-radius: 1.4rem;
+    padding: 1.2rem;
+    background: var(--general-section-1);
+    transition: all 0.4s ease;
+
+    &--over.digit-psychology-ou-group--active {
+        border-color: var(--status-success);
+        background: rgba(0, 200, 83, 0.05);
+    }
+
+    &--under.digit-psychology-ou-group--active {
+        border-color: var(--status-danger);
+        background: rgba(255, 82, 82, 0.05);
+    }
+
+    &__header {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.15rem;
+        color: var(--status-success);
+        margin-bottom: 0.6rem;
+    }
+
+    &--under &__header {
+        color: var(--status-danger);
+    }
+
+    &__digits {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+    }
+
+    &__digit {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.1rem;
+        padding: 0.4rem 0.2rem;
+        border-radius: 0.4rem;
+        background: var(--general-section-2);
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+
+        &--strong {
+            background: var(--status-success);
+            color: var(--text-colored-background);
+        }
+
+        &--under.digit-psychology-ou-group__digit--strong {
+            background: var(--status-danger);
+        }
+    }
+
+    &__total {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+    }
+}
+
+// Faithful port of #eo-signal / #eo-even-cells / #eo-consec (reference:
+// index-335-black-bars.html, lines 14282-14365).
+.digit-psychology-eo-panel {
+    // Same flex-shrink: 0 rationale as .digit-psychology-ou-panel above.
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 1.2rem;
+}
+
+.digit-psychology-eo-best-signal {
+    font-size: var(--text-size-xxs);
+    font-weight: bold;
+    color: var(--text-less-prominent);
+
+    &__value {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+
+        &--even {
+            color: var(--status-success);
+        }
+
+        &--odd {
+            color: var(--status-warning);
+        }
+    }
+
+    &__badge {
+        margin-left: 0.6rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.8rem;
+        font-size: var(--text-size-xxxs);
+
+        &--strong {
+            background: rgba(0, 200, 83, 0.15);
+            color: var(--status-success);
+        }
+
+        &--moderate {
+            background: rgba(255, 145, 0, 0.12);
+            color: var(--status-warning);
+        }
+
+        &--weak {
+            background: var(--general-section-2);
+            color: var(--text-less-prominent);
+        }
+    }
+}
+
+.digit-psychology-eo-group {
+    border: 2px solid var(--border-normal);
+    border-radius: 1.4rem;
+    padding: 1.2rem;
+    background: var(--general-section-1);
+
+    &__header {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.15rem;
+        color: var(--text-less-prominent);
+        margin-bottom: 0.6rem;
+    }
+
+    &__cells {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.6rem;
+    }
+
+    &__status {
+        display: flex;
+        justify-content: space-between;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+    }
+}
+
+.digit-psychology-eo-cell {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.4rem 0.2rem;
+    border-radius: 0.6rem;
+    background: var(--general-section-2);
+    overflow: hidden;
+
+    &__digit {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-general);
+        z-index: 1;
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+        z-index: 1;
+    }
+
+    &__bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 0.3rem;
+        background: var(--border-normal);
+    }
+
+    &--strong &__bar {
+        background: var(--status-success);
+    }
+
+    &--odd.digit-psychology-eo-cell--strong &__bar {
+        background: var(--status-warning);
+    }
+
+    &--warm &__bar {
+        background: var(--status-warning);
+    }
+}
+
+.digit-psychology-eo-consec {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    &__dots {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    &__dot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.4rem;
+        height: 2.4rem;
+        border-radius: 0.6rem;
+        background: var(--general-section-2);
+        border: 1px solid var(--border-normal);
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+
+        &--hit {
+            background: var(--status-success);
+            border-color: var(--status-success);
+            color: var(--text-colored-background);
+        }
+    }
+
+    &__text {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+    }
+}

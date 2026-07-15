@@ -70,5 +70,25 @@ module.exports = {
                 'alpha-value-notation': null,
             },
         },
+        {
+            // Digit Psychology (Over/Under + Even/Odd, split out of Signal Engine into its
+            // own tab) inherits the same literal rgba() ports as the Signal Engine override
+            // above, since this CSS was moved from signal-engine.scss largely unchanged.
+            files: ['src/pages/digit-psychology/**/*.scss'],
+            rules: {
+                'color-function-notation': null,
+                'alpha-value-notation': null,
+            },
+        },
+        {
+            // Tools (Risk/Calc/Report, ported from #tools-overlay) follows the same
+            // convention as Signal Engine above: literal rgba() for pill/status tint alphas
+            // ported from the reference implementation.
+            files: ['src/pages/tools/**/*.scss'],
+            rules: {
+                'color-function-notation': null,
+                'alpha-value-notation': null,
+            },
+        },
     ],
 };

@@ -83,7 +83,7 @@ export const SCAN_ASSET_COUNT = SCAN_ASSETS.length;
 
 // Faithful port of _runScan's tradetype family per contract (derived from
 // src/pages/bot-builder/quick-strategy/config.ts's LAST_DIGIT_PREDICTION should_have gate
-// and src/xml/*.xml TRADETYPE_LIST values — see QuickStrategyStore.applySignalFromScanner).
+// and src/xml/*.xml TRADETYPE_LIST values — see TradeSetupStore.runBot).
 export const CT_TO_TRADETYPE: Record<TContractType, string> = {
     DIGITEVEN: 'evenodd',
     DIGITODD: 'evenodd',

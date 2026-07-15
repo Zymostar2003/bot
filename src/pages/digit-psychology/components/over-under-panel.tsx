@@ -2,15 +2,24 @@ import React from 'react';
 import classNames from 'classnames';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '@/hooks/useStore';
+import DigitStrip from '@/pages/signal-engine/components/digit-strip';
+import RunMeter from '@/pages/signal-engine/components/run-meter';
 import { Localize } from '@deriv-com/translations';
 import BarrierSelector from './barrier-selector';
 import DigitHeatGrid from './digit-heat-grid';
-import DigitStrip from './digit-strip';
-import RunMeter from './run-meter';
 
 // Faithful port of renderOU's activeRoom===0 branch (reference: index-335-black-bars.html,
 // lines 14093-14200). Rooms 1/2 (`if(false){...}` at lines 14202/14234) are dead code in the
-// reference and are not ported, same as the RF "Patterns room" precedent.
+// reference and are not ported, same as the RF "Patterns room" precedent. Moved here from
+// src/pages/signal-engine/components (with its digit-psychology- class rename) — still reads
+// from signal_engine (not a separate store): the underlying live tick data, active_barrier/
+// active_dir, and ou_gating computed all stayed on SignalEngineStore, since Digit Psychology
+// shares the same live symbol/history Signal Engine's Rise/Fall view uses rather than
+// opening a second subscription — see digit-psychology.tsx's header comment. DigitStrip/
+// RunMeter are reused from their ORIGINAL signal-engine location (unrenamed) rather than
+// moved — they're also used by Smart Analysis's Last 50 panel, so digit-psychology.scss
+// duplicates their CSS the same way smart-analysis.scss already does, instead of moving the
+// components and breaking that other consumer.
 const OverUnderPanel = observer(() => {
     const { signal_engine } = useStore();
     const { full_history, ou_gating, pro_signal, active_barrier, active_dir, setActiveBarrier, setActiveDir } =
@@ -18,8 +27,8 @@ const OverUnderPanel = observer(() => {
 
     if (!full_history.length) {
         return (
-            <div className='signal-engine-ou-panel'>
-                <div className='signal-engine-rf-panel__loading'>
+            <div className='digit-psychology-ou-panel'>
+                <div className='digit-psychology-panel__loading'>
                     <Localize i18n_default_text='Gathering market data…' />
                 </div>
             </div>
@@ -31,16 +40,16 @@ const OverUnderPanel = observer(() => {
     const is_over = cur > active_barrier;
 
     return (
-        <div className='signal-engine-ou-panel'>
-            <div className='signal-engine-live-row'>
+        <div className='digit-psychology-ou-panel'>
+            <div className='digit-psychology-live-row'>
                 <span
-                    className='signal-engine-live-row__price'
+                    className='digit-psychology-live-row__price'
                     style={{ color: last.diff >= 0 ? 'var(--status-success)' : 'var(--status-danger)' }}
                 >
                     {last.price.toFixed(2)}
                 </span>
                 <span
-                    className='signal-engine-live-row__digit'
+                    className='digit-psychology-live-row__digit'
                     style={{
                         borderColor: is_over ? 'var(--status-success)' : 'var(--status-danger)',
                         color: is_over ? 'var(--status-success)' : 'var(--status-danger)',
@@ -48,7 +57,7 @@ const OverUnderPanel = observer(() => {
                 >
                     {cur}
                 </span>
-                <span className='signal-engine-live-row__verdict'>
+                <span className='digit-psychology-live-row__verdict'>
                     {is_over ? <Localize i18n_default_text='▲ OVER' /> : <Localize i18n_default_text='▼ UNDER' />}{' '}
                     <Localize i18n_default_text='barrier {{barrier}}' values={{ barrier: active_barrier }} />
                 </span>
@@ -73,22 +82,22 @@ const OverUnderPanel = observer(() => {
             <DigitHeatGrid p1000={p1000} full_history={full_history} highlight_digit={active_barrier} />
 
             <div
-                className={classNames('signal-engine-ou-group', 'signal-engine-ou-group--over', {
-                    'signal-engine-ou-group--active': active_dir === 'over',
+                className={classNames('digit-psychology-ou-group', 'digit-psychology-ou-group--over', {
+                    'digit-psychology-ou-group--active': active_dir === 'over',
                 })}
             >
-                <div className='signal-engine-ou-group__header'>
+                <div className='digit-psychology-ou-group__header'>
                     <Localize
                         i18n_default_text='🔼 OVER {{barrier}} GROUP (digits > {{barrier}})'
                         values={{ barrier: active_barrier }}
                     />
                 </div>
-                <div className='signal-engine-ou-group__digits'>
+                <div className='digit-psychology-ou-group__digits'>
                     {overDigits.map(d => (
                         <div
                             key={d}
-                            className={classNames('signal-engine-ou-group__digit', {
-                                'signal-engine-ou-group__digit--strong': p1000[d].pct >= 10,
+                            className={classNames('digit-psychology-ou-group__digit', {
+                                'digit-psychology-ou-group__digit--strong': p1000[d].pct >= 10,
                             })}
                         >
                             <span>{d}</span>
@@ -96,17 +105,17 @@ const OverUnderPanel = observer(() => {
                         </div>
                     ))}
                 </div>
-                <div className='signal-engine-ou-group__total'>
+                <div className='digit-psychology-ou-group__total'>
                     <Localize i18n_default_text='Over side total: {{pct}}%' values={{ pct: overPct.toFixed(1) }} />
                 </div>
                 {active_dir === 'over' && (
                     <div
-                        className={classNames('signal-engine-signal-box', {
-                            'signal-engine-signal-box--ready': canEnter,
+                        className={classNames('digit-psychology-signal-box', {
+                            'digit-psychology-signal-box--ready': canEnter,
                         })}
                     >
                         {canEnter ? (
-                            <div className='signal-engine-signal-box__title'>
+                            <div className='digit-psychology-signal-box__title'>
                                 {'✅ '}
                                 <Localize
                                     i18n_default_text='ENTER OVER {{barrier}}'
@@ -114,7 +123,7 @@ const OverUnderPanel = observer(() => {
                                 />
                             </div>
                         ) : (
-                            <div className='signal-engine-signal-box__desc'>
+                            <div className='digit-psychology-signal-box__desc'>
                                 {'⏳ '}
                                 <Localize i18n_default_text='Watching for OVER entry' />
                             </div>
@@ -124,25 +133,25 @@ const OverUnderPanel = observer(() => {
             </div>
 
             <div
-                className={classNames('signal-engine-ou-group', 'signal-engine-ou-group--under', {
-                    'signal-engine-ou-group--active': active_dir === 'under',
+                className={classNames('digit-psychology-ou-group', 'digit-psychology-ou-group--under', {
+                    'digit-psychology-ou-group--active': active_dir === 'under',
                 })}
             >
-                <div className='signal-engine-ou-group__header'>
+                <div className='digit-psychology-ou-group__header'>
                     <Localize
                         i18n_default_text='🔽 UNDER {{barrier}} GROUP (digits ≤ {{barrier}})'
                         values={{ barrier: active_barrier }}
                     />
                 </div>
-                <div className='signal-engine-ou-group__digits'>
+                <div className='digit-psychology-ou-group__digits'>
                     {underDigits.map(d => (
                         <div
                             key={d}
                             className={classNames(
-                                'signal-engine-ou-group__digit',
-                                'signal-engine-ou-group__digit--under',
+                                'digit-psychology-ou-group__digit',
+                                'digit-psychology-ou-group__digit--under',
                                 {
-                                    'signal-engine-ou-group__digit--strong': p1000[d].pct >= 10,
+                                    'digit-psychology-ou-group__digit--strong': p1000[d].pct >= 10,
                                 }
                             )}
                         >
@@ -151,17 +160,17 @@ const OverUnderPanel = observer(() => {
                         </div>
                     ))}
                 </div>
-                <div className='signal-engine-ou-group__total'>
+                <div className='digit-psychology-ou-group__total'>
                     <Localize i18n_default_text='Under side total: {{pct}}%' values={{ pct: underPct.toFixed(1) }} />
                 </div>
                 {active_dir === 'under' && (
                     <div
-                        className={classNames('signal-engine-signal-box', {
-                            'signal-engine-signal-box--ready': canEnter,
+                        className={classNames('digit-psychology-signal-box', {
+                            'digit-psychology-signal-box--ready': canEnter,
                         })}
                     >
                         {canEnter ? (
-                            <div className='signal-engine-signal-box__title'>
+                            <div className='digit-psychology-signal-box__title'>
                                 {'✅ '}
                                 <Localize
                                     i18n_default_text='ENTER UNDER {{barrier}}'
@@ -169,7 +178,7 @@ const OverUnderPanel = observer(() => {
                                 />
                             </div>
                         ) : (
-                            <div className='signal-engine-signal-box__desc'>
+                            <div className='digit-psychology-signal-box__desc'>
                                 {'⏳ '}
                                 <Localize i18n_default_text='Watching for UNDER entry' />
                             </div>
@@ -179,8 +188,8 @@ const OverUnderPanel = observer(() => {
             </div>
 
             {pro_signal && (
-                <div className='signal-engine-meter-card'>
-                    <div className='signal-engine-meter-card__title'>
+                <div className='digit-psychology-meter-card'>
+                    <div className='digit-psychology-meter-card__title'>
                         <Localize
                             i18n_default_text='RUN METER — {{dir}} {{barrier}}'
                             values={{ dir: pro_signal.ou.dir, barrier: active_barrier }}

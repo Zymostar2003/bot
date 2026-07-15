@@ -1,7 +1,6 @@
 import { action, makeObservable, observable, reaction } from 'mobx';
 import { ApiHelpers, config as qs_config, load } from '@/external/bot-skeleton';
 import { save_types } from '@/external/bot-skeleton/constants/save-type';
-import { TScannerSignal } from '@/utils/scanner/types';
 import { addDynamicBlockToDOM } from '@/utils/xml-dom-quick-strategy';
 import { STRATEGIES } from '../pages/bot-builder/quick-strategy/config';
 import { TFormData } from '../pages/bot-builder/quick-strategy/types';
@@ -45,7 +44,6 @@ interface IQuickStrategyStore {
     toggleStopBotDialog: () => void;
     setCurrentDurationMinMax: (min: number, max: number) => void;
     setOptionsLoading: (is_loading: boolean) => void;
-    applySignalFromScanner: (signal: TScannerSignal) => void;
 }
 
 export default class QuickStrategyStore implements IQuickStrategyStore {
@@ -83,7 +81,6 @@ export default class QuickStrategyStore implements IQuickStrategyStore {
             selected_strategy: observable,
             loss_threshold_warning_data: observable,
             onSubmit: action,
-            applySignalFromScanner: action,
             setAdditionalData: action,
             setCurrentDurationMinMax: action,
             setFormVisibility: action,
@@ -224,37 +221,6 @@ export default class QuickStrategyStore implements IQuickStrategyStore {
             strategy_id: null,
             showIncompatibleStrategyDialog: null,
         });
-    };
-
-    // ── SCANNER INTEGRATION BOUNDARY ──
-    // applySignalFromScanner writes ONLY the signal fields a Scanner result determines:
-    // symbol, tradetype, contract/purchase type ('type'), and — for Over/Under/Match/Differ
-    // only — the digit prediction/barrier ('last_digit_prediction', see config.ts's
-    // LAST_DIGIT_PREDICTION field, gated on tradetype 'overunder'/'matchesdiffers'). It must
-    // NEVER set stake, size/unit (martingale/d'Alembert multiplier), take_profit, loss,
-    // tick_count, boolean_tick_count, max_stake, boolean_max_stake, or growth_rate — those
-    // are risk/money-management fields and stay exactly whatever the user already has
-    // configured (or the strategy template's defaults, untouched). This spreads onto the
-    // EXISTING form_data rather than replacing it, so a user's current risk configuration
-    // survives applying a scanner signal — matching the reference's own _activateResult,
-    // which preserves whatever risk params (`bpc-mart`/`bpc-tp`/`bpc-sl`) are already filled
-    // in and only fills defaults for fields still empty (reference/index-335-black-bars.html,
-    // lines 22934-22951).
-    //
-    // onSubmit() is called with `action: 'NONE'` (not 'RUN') so applying a signal never
-    // auto-runs the bot — onSubmit's `if (action === 'RUN')` branch (line ~201 above) is the
-    // only thing gated on that field, so any non-'RUN' value safely skips auto-run. The
-    // reference's own Scanner never presses Run itself either — it loads the config and
-    // leaves Run to the user (reference lines 22965-22971: toast + scroll-into-view only).
-    applySignalFromScanner = (signal: TScannerSignal) => {
-        this.form_data = {
-            ...this.form_data,
-            symbol: signal.symbol,
-            tradetype: signal.tradetype,
-            type: signal.contractType,
-            ...(signal.prediction !== undefined ? { last_digit_prediction: signal.prediction } : {}),
-        };
-        this.onSubmit({ ...this.form_data, action: 'NONE' });
     };
 
     toggleStopBotDialog = (): void => {

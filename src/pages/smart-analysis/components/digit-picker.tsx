@@ -10,8 +10,9 @@ type TDigitPickerProps = {
 
 const DIGITS = Array.from({ length: 10 }, (_, i) => i);
 
-// Own simpler barrier-digit picker for Smart Analysis's Last 50 view — inspired by
-// signal-engine's barrier-selector.tsx visual pattern (0-9 grid + reset button) but without
+// Own simpler barrier-digit picker for Smart Analysis's Last 50 view — inspired by Digit
+// Psychology's barrier-selector.tsx visual pattern (0-9 grid + reset button, formerly
+// signal-engine's before Over/Under and Even/Odd moved to their own tab) but without
 // its Over/Under direction toggle, which Smart Analysis's barrier picker doesn't need (it's
 // used for both Over/Under and Matches/Differs here). Faithful port of saSetupDigitGrid's
 // #sa-barrier-panel buttons + reset ("X") button (reference: index-335-black-bars.html,

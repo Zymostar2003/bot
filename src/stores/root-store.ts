@@ -20,6 +20,7 @@ import SmartAnalysisStore from './smart-analysis-store';
 import SummaryCardStore from './summary-card-store';
 import ToolbarStore from './toolbar-store';
 import ToolboxStore from './toolbox-store';
+import TradeSetupStore from './trade-setup-store';
 import TransactionsStore from './transactions-store';
 import UiStore from './ui-store';
 
@@ -48,6 +49,7 @@ export default class RootStore {
     public signal_engine: SignalEngineStore;
     public smart_analysis: SmartAnalysisStore;
     public scanner: ScannerStore;
+    public trade_setup: TradeSetupStore;
 
     public ui: UiStore;
     public client: ClientStore;
@@ -95,8 +97,14 @@ export default class RootStore {
         // No chart_store dependency — auto-selects the first symbol in its own category-filtered
         // list once available_symbols loads (see SmartAnalysisStore's constructor reaction).
         this.smart_analysis = new SmartAnalysisStore(this);
-        // Depends on this.quick_strategy (already constructed above) for its apply-to-bot
-        // write path (ScannerStore.confirmApply -> quick_strategy.applySignalFromScanner).
+        // Depends on this.dashboard (already constructed above) and this.trade_setup (below)
+        // for its apply-to-bot handoff (ScannerStore.confirmApply -> trade_setup.
+        // applyFromScanner + dashboard.setActiveTab) — resolved lazily at call time, not at
+        // construction, so the fact trade_setup is constructed AFTER scanner here doesn't
+        // matter.
         this.scanner = new ScannerStore(this);
+        // Depends on this.quick_strategy (already constructed above) for its Run Bot write
+        // path (TradeSetupStore.runBot -> quick_strategy.onSubmit).
+        this.trade_setup = new TradeSetupStore(this);
     }
 }

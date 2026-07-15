@@ -1,11 +1,11 @@
 import { action, computed, makeObservable, observable, reaction, runInAction } from 'mobx';
+import { toast } from 'react-toastify';
+import { DBOT_TABS } from '@/constants/bot-contents';
 import { api_base } from '@/external/bot-skeleton';
 import TicksService from '@/external/bot-skeleton/services/api/ticks_service';
 import {
     CONTRACT_TYPES,
     CT_LABELS,
-    CT_NEEDS_PREDICTION,
-    CT_TO_TRADETYPE,
     DEFAULT_MIN_TICKS,
     FILTER_TAB_CONTRACT_TYPES,
     SCAN_ASSETS,
@@ -400,7 +400,19 @@ export default class ScannerStore {
         }
         this.live_asset = asset;
         this.ticks_service
-            .monitor({ symbol: asset, granularity: undefined, callback: this.onLiveTicksUpdate })
+            .monitor({
+                symbol: asset,
+                granularity: undefined,
+                callback: ticks => {
+                    // Superseded by a newer startLiveDigitMonitor/stopLiveDigitMonitor call —
+                    // TicksService.monitor() delivers its initial history batch as soon as
+                    // it's fetched (see ticks_service.js's monitor() fix), so a slow response
+                    // for an asset we've since moved away from can otherwise land after a
+                    // faster one and silently overwrite it with stale data.
+                    if (this.live_asset !== asset) return;
+                    this.onLiveTicksUpdate(ticks);
+                },
+            })
             .then(key => {
                 if (this.live_asset === asset) {
                     runInAction(() => {
@@ -450,18 +462,22 @@ export default class ScannerStore {
         this.pending_result = null;
     };
 
+    // Faithful port of _activateResult's own handoff target (reference lines 22885-22972):
+    // Scanner never places a trade itself — it configures the Trade Setup panel with the
+    // scan result, switches to it, and leaves the actual Run Bot press to the user (steps
+    // 1-4, 9 of _activateResult; step 5 "enable bot mode" has no equivalent since dbot has
+    // no separate bot-mode toggle; steps 7-8, syncing the main chart/payout preview, aren't
+    // ported either — TradeSetupStore has no chart/payout preview of its own to sync).
     confirmApply = () => {
         const result = this.pending_result;
         this.is_confirm_open = false;
         this.pending_result = null;
         if (!result) return;
 
-        this.root_store.quick_strategy.applySignalFromScanner({
-            symbol: result.asset,
-            tradetype: CT_TO_TRADETYPE[result.ct],
-            contractType: result.ct,
-            prediction: CT_NEEDS_PREDICTION[result.ct] ? extractBarrierDigit(result) : undefined,
-        });
+        this.root_store.trade_setup.applyFromScanner(result);
+        this.root_store.dashboard.setActiveTab(DBOT_TABS.TRADE_SETUP);
+        toast.success(`✅ ${result.assetLabel} | ${result.ctLabel} — ready!`);
+
         this.results = this.results.filter(r => r !== result);
         this.all_scored = this.all_scored.filter(r => r !== result);
     };

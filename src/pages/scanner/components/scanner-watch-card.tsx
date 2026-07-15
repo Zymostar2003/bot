@@ -12,7 +12,7 @@ type TScannerWatchCardProps = {
 // capability, no reference equivalent (the reference just showed nothing in this case too).
 // Deliberately has no Apply/Dismiss controls: applying a REJECT-quality combo to the bot
 // would be actively misleading — see the signal-only boundary in
-// QuickStrategyStore.applySignalFromScanner.
+// TradeSetupStore.applyFromScanner.
 const ScannerWatchCard = ({ result }: TScannerWatchCardProps) => (
     <div className='scanner-result-card scanner-result-card--reject'>
         <div className='scanner-result-card__banner'>

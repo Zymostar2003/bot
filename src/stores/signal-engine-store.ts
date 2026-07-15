@@ -35,7 +35,13 @@ import { calcVFPI, getIndicatorBias } from '@/utils/signal-engine/vfpi';
 import { ActiveSymbols } from '@deriv/api-types';
 import RootStore from './root-store';
 
-type TSignalEngineTab = 'rf' | 'ou' | 'eo';
+// 'rf' was dropped once Rise/Fall became this page's only view (no more internal tab
+// switcher — see signal-engine.tsx's header comment) — this field now exists purely for
+// Digit Psychology's own Over/Under vs. Even/Odd switcher (src/pages/digit-psychology),
+// which reads/writes it here rather than on its own store since the underlying live tick
+// data (full_history) and gating computeds (ou_gating/eo_gating) all stayed on this store
+// too — see digit-psychology.tsx's header comment for why.
+export type TSignalEngineTab = 'ou' | 'eo';
 
 type TOUDirection = 'over' | 'under';
 
@@ -78,7 +84,7 @@ export default class SignalEngineStore {
 
     symbol = '';
     granularity = 60;
-    active_tab: TSignalEngineTab = 'rf';
+    active_tab: TSignalEngineTab = 'ou';
     tick_history: TTick[] = [];
     candle_history: TCandle[] = [];
     indicator_settings: TIndicatorSettings = { ...DEFAULT_INDICATOR_SETTINGS };
@@ -431,16 +437,40 @@ export default class SignalEngineStore {
             this.ticks_service = new TicksService();
         }
 
+        // Captured so the callbacks/`.then()`s below can tell whether they're still relevant
+        // once they actually resolve — TicksService.monitor() now delivers its initial
+        // history batch as soon as it's fetched (see ticks_service.js's monitor() fix) rather
+        // than waiting for the next live tick/candle, which means a slow response for a
+        // symbol/granularity the user has since switched away from can otherwise land AFTER
+        // a faster response for the new one and silently overwrite it with stale data.
+        const symbol = this.symbol;
+        const granularity = this.granularity;
+
         this.ticks_service
-            .monitor({ symbol: this.symbol, granularity: undefined, callback: this.onTicksUpdate })
+            .monitor({
+                symbol,
+                granularity: undefined,
+                callback: ticks => {
+                    if (this.symbol !== symbol) return; // superseded by a newer setSymbol call
+                    this.onTicksUpdate(ticks);
+                },
+            })
             .then(key => {
-                this.tick_monitor_key = key;
+                if (this.symbol === symbol) this.tick_monitor_key = key;
             });
 
         this.ticks_service
-            .monitor({ symbol: this.symbol, granularity: this.granularity, callback: this.onCandlesUpdate })
+            .monitor({
+                symbol,
+                granularity,
+                callback: candles => {
+                    // superseded by a newer setSymbol/setGranularity call
+                    if (this.symbol !== symbol || this.granularity !== granularity) return;
+                    this.onCandlesUpdate(candles);
+                },
+            })
             .then(key => {
-                this.candle_monitor_key = key;
+                if (this.symbol === symbol && this.granularity === granularity) this.candle_monitor_key = key;
             });
 
         this.setSubscribed(true);
@@ -510,10 +540,20 @@ export default class SignalEngineStore {
         this.granularity = granularity;
         this.candle_history = [];
         if (this.ticks_service && this.symbol) {
+            // Same stale-response guard as startMonitoring() — see its comment.
+            const symbol = this.symbol;
+
             this.ticks_service
-                .monitor({ symbol: this.symbol, granularity: this.granularity, callback: this.onCandlesUpdate })
+                .monitor({
+                    symbol,
+                    granularity,
+                    callback: candles => {
+                        if (this.symbol !== symbol || this.granularity !== granularity) return;
+                        this.onCandlesUpdate(candles);
+                    },
+                })
                 .then(key => {
-                    this.candle_monitor_key = key;
+                    if (this.symbol === symbol && this.granularity === granularity) this.candle_monitor_key = key;
                 });
         }
     };

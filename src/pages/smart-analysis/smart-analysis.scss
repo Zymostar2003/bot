@@ -272,7 +272,8 @@ $smart-analysis-compact-width: 640px;
 }
 
 // Own simpler barrier-digit picker (no direction toggle) — see digit-picker.tsx's comment.
-// Visual pattern mirrors signal-engine-barrier-selector's grid without importing/modifying it.
+// Visual pattern mirrors Digit Psychology's barrier-selector.tsx grid (formerly
+// signal-engine's) without importing/modifying it.
 .smart-analysis-digit-picker {
     display: grid;
     grid-template-columns: repeat(11, 1fr);

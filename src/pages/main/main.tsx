@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useEffect, useState } from 'react';
 import classNames from 'classnames';
 import { observer } from 'mobx-react-lite';
 import { useLocation, useNavigate } from 'react-router-dom';
+import FloatingRunBot from '@/components/floating-run-bot';
 import ChunkLoader from '@/components/loader/chunk-loader';
 import { generateOAuthURL } from '@/components/shared';
 import DesktopWrapper from '@/components/shared_ui/desktop-wrapper';
@@ -20,6 +21,9 @@ import useTMB from '@/hooks/useTMB';
 import { handleOidcAuthFailure } from '@/utils/auth-utils';
 import {
     LabelPairedChartLineCaptionRegularIcon,
+    LabelPairedChartTradingviewCaptionRegularIcon,
+    LabelPairedGearCaptionRegularIcon,
+    LabelPairedLightbulbCaptionRegularIcon,
     LabelPairedObjectsColumnCaptionRegularIcon,
     LabelPairedPuzzlePieceTwoCaptionBoldIcon,
     LabelPairedSearchCaptionRegularIcon,
@@ -36,9 +40,13 @@ import './main.scss';
 
 const ChartWrapper = lazy(() => import('../chart/chart-wrapper'));
 const Tutorial = lazy(() => import('../tutorials'));
+const TradingView = lazy(() => import('../tradingview'));
 const SignalEngine = lazy(() => import('../signal-engine'));
 const SmartAnalysis = lazy(() => import('../smart-analysis'));
 const Scanner = lazy(() => import('../scanner'));
+const TradeSetup = lazy(() => import('../trade-setup'));
+const DigitPsychology = lazy(() => import('../digit-psychology'));
+const Tools = lazy(() => import('../tools'));
 
 const AppWrapper = observer(() => {
     const { connectionStatus } = useApiBase();
@@ -70,7 +78,19 @@ const AppWrapper = observer(() => {
     const { clear } = summary_card;
     const { DASHBOARD, BOT_BUILDER } = DBOT_TABS;
     const init_render = React.useRef(true);
-    const hash = ['dashboard', 'bot_builder', 'chart', 'tutorial', 'signal_engine', 'smart_analysis', 'scanner'];
+    const hash = [
+        'dashboard',
+        'bot_builder',
+        'chart',
+        'tutorial',
+        'tradingview',
+        'signal_engine',
+        'smart_analysis',
+        'scanner',
+        'trade_setup',
+        'digit_psychology',
+        'tools',
+    ];
     const { isDesktop } = useDevice();
     const location = useLocation();
     const navigate = useNavigate();
@@ -89,7 +109,7 @@ const AppWrapper = observer(() => {
 
     React.useEffect(() => {
         const el_dashboard = document.getElementById('id-dbot-dashboard');
-        const el_last_tab = document.getElementById('id-scanner');
+        const el_last_tab = document.getElementById('id-tools');
 
         const observer_dashboard = new window.IntersectionObserver(
             ([entry]) => {
@@ -354,6 +374,25 @@ const AppWrapper = observer(() => {
                                     </Suspense>
                                 </div>
                             </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedChartTradingviewCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='TradingView' />
+                                    </>
+                                }
+                                id='id-tradingview'
+                            >
+                                <Suspense
+                                    fallback={<ChunkLoader message={localize('Please wait, loading TradingView...')} />}
+                                >
+                                    <TradingView />
+                                </Suspense>
+                            </div>
                             <div label={<Localize i18n_default_text='Signal Engine' />} id='id-signal-engine'>
                                 <Suspense
                                     fallback={
@@ -391,6 +430,53 @@ const AppWrapper = observer(() => {
                                     <Scanner />
                                 </Suspense>
                             </div>
+                            <div label={<Localize i18n_default_text='⚡ Trade Setup' />} id='id-trade-setup'>
+                                <Suspense
+                                    fallback={<ChunkLoader message={localize('Please wait, loading trade setup...')} />}
+                                >
+                                    <TradeSetup />
+                                </Suspense>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedLightbulbCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='Digit Psychology' />
+                                    </>
+                                }
+                                id='id-digit-psychology'
+                            >
+                                <Suspense
+                                    fallback={
+                                        <ChunkLoader message={localize('Please wait, loading digit psychology...')} />
+                                    }
+                                >
+                                    <DigitPsychology />
+                                </Suspense>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedGearCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--text-general)'
+                                        />
+                                        <Localize i18n_default_text='Tools' />
+                                    </>
+                                }
+                                id='id-tools'
+                            >
+                                <Suspense
+                                    fallback={<ChunkLoader message={localize('Please wait, loading tools...')} />}
+                                >
+                                    <Tools />
+                                </Suspense>
+                            </div>
                         </Tabs>
                         {!isDesktop && right_tab_shadow && <span className='tabs-shadow tabs-shadow--right' />}{' '}
                     </div>
@@ -423,6 +509,7 @@ const AppWrapper = observer(() => {
             >
                 {message}
             </Dialog>
+            <FloatingRunBot />
         </React.Fragment>
     );
 });

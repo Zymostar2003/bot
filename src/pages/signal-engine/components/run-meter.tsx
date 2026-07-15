@@ -10,7 +10,11 @@ type TRunMeterProps = {
 
 // Faithful port of runMeterHTML's thresholds/labels (reference: index-335-black-bars.html,
 // lines 7103-7120). Structural change: JSX + dbot design tokens replace the string-built
-// inline-styled HTML; the run/score thresholds and labels are unchanged.
+// inline-styled HTML; the run/score thresholds and labels are unchanged. Shared across
+// pages — reused as-is (not moved/renamed) by Digit Psychology's Over/Under and Even/Odd
+// panels (src/pages/digit-psychology/components) and Smart Analysis's Last 50 panel
+// (last-50-panel.tsx duplicates this component's CSS into smart-analysis.scss for the same
+// cross-page-bundle reason Digit Psychology's own scss does).
 const RunMeter = ({ runs, score, variant }: TRunMeterProps) => {
     const label =
         runs === 0

@@ -481,11 +481,12 @@
 
 // Live digit monitor grid (scanner-live-digits.tsx) — new capability, no reference equivalent
 // as a standing panel. Deliberately a fresh scanner-namespaced block rather than reusing
-// .signal-engine-digit-heat-grid's CSS: that block lives in signal-engine.scss, which isn't
-// guaranteed to be loaded in a session that only ever visits the Scanner tab (each page's
-// .scss is imported by its own .tsx, not bundled globally) — see scanner-live-digits.tsx's
-// header comment. Layout mirrors it (5-column grid, same cell shape) since it's the same
-// underlying digit-percentage data, just a separate stylesheet.
+// DigitHeatGrid's CSS (now .digit-psychology-digit-heat-grid, src/pages/digit-psychology):
+// that block lives in digit-psychology.scss, which isn't guaranteed to be loaded in a
+// session that only ever visits the Scanner tab (each page's .scss is imported by its own
+// .tsx, not bundled globally) — see scanner-live-digits.tsx's header comment. Layout mirrors
+// it (5-column grid, same cell shape) since it's the same underlying digit-percentage data,
+// just a separate stylesheet.
 .scanner-live-digits {
     display: flex;
     flex-direction: column;
