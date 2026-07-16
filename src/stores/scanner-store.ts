@@ -10,11 +10,23 @@ import {
     FILTER_TAB_CONTRACT_TYPES,
     SCAN_ASSETS,
 } from '@/utils/scanner/constants';
+import {
+    computeEntryDigit,
+    DIGIT_HUNT_REFRESH_TICKS,
+    entryWatchDescription,
+    isConfirmTick,
+    isEntryDigitMatch,
+    isPullbackTick,
+    MAX_WAIT_TICKS,
+    PULLBACK_MAX,
+    PULLBACK_MIN,
+} from '@/utils/scanner/entry-point';
 import { dsRegime } from '@/utils/scanner/helpers';
 import { applyScannerFilters, scoreCombo } from '@/utils/scanner/scoring';
 import {
     TContractType,
     TDigitPct,
+    TEntryWatchState,
     TFullHistoryTick,
     TRegimeCounts,
     TScannerFilterTab,
@@ -92,6 +104,12 @@ export default class ScannerStore {
     is_confirm_open = false;
     pending_result: TScanResult | null = null;
 
+    // "Find Entry Point" watcher (new capability, faithful port of the reference's deferred
+    // Entry Point Engine — see entry-point.ts's header comment). One watch runs at a time,
+    // matching the reference's own single-instance _scEntry object.
+    entry_watch: TEntryWatchState | null = null;
+    _entry_watch_key: string | null = null;
+
     // Faithful port of the reference's soundOn/_scSoundType-gated scan pulse + found beep
     // (reference: _scStartPulse/_scStopPulse/_scPlaySound, lines 16685-16810). Reuses
     // signal-engine/sound.ts's beep() primitive rather than re-implementing oscillator
@@ -128,11 +146,13 @@ export default class ScannerStore {
             is_confirm_open: observable,
             pending_result: observable,
             sound_enabled: observable,
+            entry_watch: observable,
             is_scanning: computed,
             status_label: computed,
             top_result: computed,
             live_full_history: computed,
             live_digit_pcts: computed,
+            entry_watch_description: computed,
             setOpen: action.bound,
             toggle: action.bound,
             setActiveTab: action.bound,
@@ -147,6 +167,9 @@ export default class ScannerStore {
             startLiveDigitMonitor: action.bound,
             stopLiveDigitMonitor: action.bound,
             onLiveTicksUpdate: action.bound,
+            startEntryWatch: action.bound,
+            stopEntryWatch: action.bound,
+            onEntryWatchTick: action.bound,
         });
         this.root_store = root_store;
 
@@ -182,6 +205,10 @@ export default class ScannerStore {
 
     get live_digit_pcts(): TDigitPct[] {
         return dPcts(this.live_full_history, 1000);
+    }
+
+    get entry_watch_description(): string {
+        return this.entry_watch ? entryWatchDescription(this.entry_watch.result.ct) : '';
     }
 
     // Faithful port of the scout-status-badge text states (reference: setBadge calls at
@@ -269,6 +296,7 @@ export default class ScannerStore {
         if (this.status === 'scanning') return;
         const token = ++this.scan_token;
 
+        this.stopEntryWatch(); // a fresh scan replaces `results`, orphaning any watched result
         this.status = 'scanning';
         this.results = [];
         this.received_count = 0;
@@ -444,7 +472,150 @@ export default class ScannerStore {
         this.live_tick_history = ticks;
     };
 
+    // ── Find Entry Point (new capability — see entry-point.ts's header comment) ──
+
+    // Faithful port of _scStartEntry (reference lines 21498-21645), using TicksService.monitor
+    // instead of a dedicated WebSocket subscription (same substitution as
+    // startLiveDigitMonitor above). Independent of the live digit monitor above — this can
+    // watch any result the user picks, not just the current top result, and needs its own
+    // subscription since they can point at different assets at once.
+    startEntryWatch = (result: TScanResult) => {
+        this.stopEntryWatch();
+        if (!this.ticks_service) {
+            this.ticks_service = new TicksService();
+        }
+        const ticks_service = this.ticks_service;
+
+        this.entry_watch = {
+            result,
+            phase: 'waiting',
+            pullbacks: 0,
+            digit_hunt_ticks: 0,
+            entry_digit: null,
+            recent_ticks: [],
+            ticks_seen: 0,
+        };
+
+        // TicksService.monitor()'s callback fires once immediately with the full initial
+        // history batch (see ticks_service.js's monitor()), then once per subsequent live
+        // tick with the same rolling array shifted by one. The state machine below only makes
+        // sense applied to genuinely new, sequential ticks — so the first (bulk-history)
+        // callback is used only to seed recent_ticks, not run through it.
+        let is_first_batch = true;
+        ticks_service
+            .monitor({
+                symbol: result.asset,
+                granularity: undefined,
+                callback: (ticks: TTick[]) => {
+                    if (this.entry_watch?.result !== result) return; // superseded
+                    const pip_size = (api_base.pip_sizes as Record<string, number>)?.[result.asset] ?? 2;
+                    const hist = toFullHistoryTicks(ticks, pip_size);
+                    if (is_first_batch) {
+                        is_first_batch = false;
+                        runInAction(() => {
+                            if (this.entry_watch?.result === result) {
+                                this.entry_watch.recent_ticks = hist.slice(-12);
+                            }
+                        });
+                        return;
+                    }
+                    this.onEntryWatchTick(hist, result);
+                },
+            })
+            .then(key => {
+                if (this.entry_watch?.result === result) {
+                    runInAction(() => {
+                        this._entry_watch_key = key;
+                    });
+                } else {
+                    // Superseded while monitor() was still resolving — same orphaned-
+                    // subscription cleanup as startLiveDigitMonitor above.
+                    ticks_service.stopMonitor({ symbol: result.asset, granularity: undefined, key });
+                }
+            });
+    };
+
+    // Faithful port of _scStopEntry (reference lines 21647-21663).
+    stopEntryWatch = () => {
+        if (this.ticks_service && this._entry_watch_key && this.entry_watch) {
+            this.ticks_service.stopMonitor({
+                symbol: this.entry_watch.result.asset,
+                granularity: undefined,
+                key: this._entry_watch_key,
+            });
+        }
+        this._entry_watch_key = null;
+        this.entry_watch = null;
+    };
+
+    // Faithful port of the 3-phase state machine inside _scStartEntry's onmessage handler
+    // (reference lines 21547-21633): waiting → pullback → digit_hunt → found.
+    onEntryWatchTick = (hist: TFullHistoryTick[], result: TScanResult) => {
+        const ew = this.entry_watch;
+        if (!ew || ew.result !== result) return;
+        const tick = hist[hist.length - 1];
+        if (!tick) return;
+
+        ew.recent_ticks = hist.slice(-12);
+        ew.ticks_seen++;
+
+        if (ew.ticks_seen > MAX_WAIT_TICKS) {
+            toast.info(`⏱ No entry point found for ${result.assetLabel} — stopped watching.`);
+            this.stopEntryWatch();
+            return;
+        }
+
+        const is_pullback = isPullbackTick(tick, result.ct, result.dir);
+
+        if (ew.phase === 'waiting' || ew.phase === 'pullback') {
+            if (is_pullback) {
+                ew.pullbacks++;
+                if (ew.pullbacks >= PULLBACK_MIN) ew.phase = 'pullback';
+                // Counter-move extended too far — this looks like a genuine reversal, not a
+                // dip, so reset and keep waiting rather than treating it as a pullback.
+                if (ew.pullbacks > PULLBACK_MAX) {
+                    ew.pullbacks = 0;
+                    ew.phase = 'waiting';
+                }
+            } else if (ew.phase === 'pullback') {
+                // Counter-move ended — pullback confirmed. Compute the entry digit to hunt.
+                ew.entry_digit = computeEntryDigit(hist, ew.recent_ticks, result.ct, result.dir, result.barrier);
+                ew.phase = 'digit_hunt';
+                ew.digit_hunt_ticks = 0;
+            } else {
+                ew.pullbacks = 0;
+            }
+        } else if (ew.phase === 'digit_hunt') {
+            ew.digit_hunt_ticks++;
+            const ed = ew.entry_digit;
+            const is_entry_digit = ed
+                ? ed.digit === null
+                    ? isConfirmTick(tick, result.ct, result.dir, ew.pullbacks)
+                    : isEntryDigitMatch(tick, ed, result.ct)
+                : false;
+
+            if (is_entry_digit) {
+                ew.phase = 'found';
+                // Route through applyResult (the risk-disclaimer confirm dialog) rather than
+                // confirmApply directly — Find Entry Point automates WHEN to enter, not
+                // WHETHER to; the final commit still needs the user's explicit confirmation,
+                // same as a normal Apply click (see confirmApply's own comment on this
+                // invariant).
+                this.applyResult(result);
+                this.stopEntryWatch();
+                return;
+            }
+            // Unique digit hasn't shown in a while — conditions may have drifted, refresh the
+            // target from the latest distribution rather than going stale.
+            if (ew.digit_hunt_ticks > DIGIT_HUNT_REFRESH_TICKS) {
+                ew.entry_digit = computeEntryDigit(hist, ew.recent_ticks, result.ct, result.dir, result.barrier);
+                ew.digit_hunt_ticks = 0;
+            }
+        }
+    };
+
     dismissResult = (result: TScanResult) => {
+        if (this.entry_watch?.result === result) this.stopEntryWatch();
         this.results = this.results.filter(r => r !== result);
         this.all_scored = this.all_scored.filter(r => r !== result);
     };

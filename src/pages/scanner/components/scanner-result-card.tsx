@@ -7,6 +7,7 @@ type TScannerResultCardProps = {
     result: TScanResult;
     onApply: (result: TScanResult) => void;
     onDismiss: (result: TScanResult) => void;
+    onFindEntry: (result: TScanResult) => void;
 };
 
 // New capability, no reference equivalent — see TScanResult.trend / ScannerStore.scan().
@@ -20,7 +21,7 @@ const TREND_TEXT: Record<string, string> = {
 // result rendering (reference/index-335-black-bars.html — quality banner text at the
 // SIGNAL/WATCH split, e.g. lines around 18178-18190/20977-20990) with Apply/Dismiss
 // controls (`window._scout.activateIdx`/`dismiss`, reference lines 18189-18190).
-const ScannerResultCard = ({ result, onApply, onDismiss }: TScannerResultCardProps) => {
+const ScannerResultCard = ({ result, onApply, onDismiss, onFindEntry }: TScannerResultCardProps) => {
     const is_signal = result.quality === 'SIGNAL';
     return (
         <div className={`scanner-result-card scanner-result-card--${is_signal ? 'signal' : 'watch'}`}>
@@ -57,6 +58,9 @@ const ScannerResultCard = ({ result, onApply, onDismiss }: TScannerResultCardPro
             <div className='scanner-result-card__actions'>
                 <button type='button' className='scanner-result-card__apply' onClick={() => onApply(result)}>
                     <Localize i18n_default_text='Apply' />
+                </button>
+                <button type='button' className='scanner-result-card__find-entry' onClick={() => onFindEntry(result)}>
+                    <Localize i18n_default_text='🎯 Find Entry Point' />
                 </button>
                 <button type='button' className='scanner-result-card__dismiss' onClick={() => onDismiss(result)}>
                     <Localize i18n_default_text='Dismiss' />

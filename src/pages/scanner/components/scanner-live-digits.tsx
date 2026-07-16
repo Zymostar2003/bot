@@ -5,6 +5,7 @@ import { heatColor } from '@/pages/signal-engine/components/digit-color';
 import { extractBarrierDigit } from '@/stores/scanner-store';
 import { driftOf } from '@/utils/signal-engine/pro-signal';
 import { Localize } from '@deriv-com/translations';
+import DigitStrip from '../../signal-engine/components/digit-strip';
 import { useScannerStore } from '../use-scanner-store';
 
 // Live digit percentage monitor for the scan's current top asset (results[0], or the
@@ -23,6 +24,37 @@ const ScannerLiveDigits = observer(() => {
     const { top_result, live_asset, live_tick_history, live_digit_pcts, live_full_history } = scanner_store;
 
     if (!top_result || !live_asset) return null;
+
+    // Rise/Fall is a price-direction contract, not a digit contract — a digit-percentage grid
+    // is meaningless for it, so show a Last 50 rise/fall tick strip instead of the digit grid
+    // entirely (not alongside it).
+    if (top_result.ct === 'CALL' || top_result.ct === 'PUT') {
+        const last_50 = live_full_history.slice(-50);
+        return (
+            <div className='scanner-live-digits'>
+                <div className='scanner-live-digits__header'>
+                    <span className='scanner-live-digits__title'>
+                        <Localize
+                            i18n_default_text='📡 Last 50 — {{asset}}'
+                            values={{ asset: top_result.assetLabel }}
+                        />
+                    </span>
+                    <span className='scanner-live-digits__count'>
+                        <Localize i18n_default_text='{{count}} / 50 ticks' values={{ count: last_50.length }} />
+                    </span>
+                </div>
+                {!!last_50.length && (
+                    <DigitStrip
+                        ticks={last_50}
+                        getDotStyle={t => ({
+                            label: t.diff >= 0 ? 'R' : 'F',
+                            color: t.diff >= 0 ? 'var(--status-success)' : 'var(--status-danger)',
+                        })}
+                    />
+                )}
+            </div>
+        );
+    }
 
     const highlight_digit = extractBarrierDigit(top_result);
     const tick_count = Math.min(live_tick_history.length, 1000);

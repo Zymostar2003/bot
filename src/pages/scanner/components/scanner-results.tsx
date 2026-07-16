@@ -3,7 +3,9 @@ import { observer } from 'mobx-react-lite';
 import { Localize } from '@deriv-com/translations';
 import { useScannerStore } from '../use-scanner-store';
 import ScannerAiAnalysis from './scanner-ai-analysis';
+import ScannerEntryWatch from './scanner-entry-watch';
 import ScannerLiveDigits from './scanner-live-digits';
+import ScannerMiniChart from './scanner-mini-chart';
 import ScannerRegimeSummary from './scanner-regime-summary';
 import ScannerResultCard from './scanner-result-card';
 import ScannerResultRow from './scanner-result-row';
@@ -22,7 +24,8 @@ import ScannerWatchCard from './scanner-watch-card';
 // informational reference. Nothing in this fallback is applyable to the bot.
 const ScannerResults = observer(() => {
     const scanner_store = useScannerStore();
-    const { results, all_scored, regime_counts, status, is_scanning, applyResult, dismissResult } = scanner_store;
+    const { results, all_scored, regime_counts, status, is_scanning, applyResult, dismissResult, startEntryWatch } =
+        scanner_store;
 
     if (!results.length) {
         if (is_scanning) {
@@ -39,6 +42,7 @@ const ScannerResults = observer(() => {
                     <div className='scanner__results'>
                         <ScannerRegimeSummary regime_counts={regime_counts} />
                         <ScannerLiveDigits />
+                        <ScannerMiniChart />
                         <div className='scanner__watch-heading'>
                             <Localize i18n_default_text="No qualifying signals this scan — here's the closest candidate." />
                         </div>
@@ -73,7 +77,14 @@ const ScannerResults = observer(() => {
         <div className='scanner__results'>
             <ScannerRegimeSummary regime_counts={regime_counts} />
             <ScannerLiveDigits />
-            <ScannerResultCard result={top} onApply={applyResult} onDismiss={dismissResult} />
+            <ScannerMiniChart />
+            <ScannerResultCard
+                result={top}
+                onApply={applyResult}
+                onDismiss={dismissResult}
+                onFindEntry={startEntryWatch}
+            />
+            <ScannerEntryWatch />
             <ScannerAiAnalysis result={top} />
             {!!rest.length && (
                 <div className='scanner__results-list'>

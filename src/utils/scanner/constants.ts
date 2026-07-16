@@ -71,10 +71,12 @@ export const SCANNER_FILTER_DEFAULTS: TScannerFilterFlags = {
     pctDiffMode: false,
 };
 
-// Faithful port of the min-ticks fallback used by window._scout.scan/scanFor (reference
-// lines 22976, 22983: `parseInt(...) || 150`) — the *functional* default, not the HTML
-// input's own placeholder value of 1000 (see task notes).
-export const DEFAULT_MIN_TICKS = 150;
+// The reference's own functional default was 150 (window._scout.scan/scanFor's
+// `parseInt(...) || 150`, lines 22976/22983) — this deliberately deviates from that,
+// raising it to 1000 (matching the reference HTML input's own placeholder value) so a scan
+// requires a full ~1000-tick sample per asset before scoring it, for higher-confidence
+// signals.
+export const DEFAULT_MIN_TICKS = 1000;
 
 // Faithful port of _runScan's minTicks-not-reached log message (reference line 16884-16886)
 // — used to know how many ticks TicksService.request() returns per asset (1000, per

@@ -394,6 +394,19 @@
         cursor: pointer;
     }
 
+    // Find Entry Point (new capability — see entry-point.ts's header comment).
+    &__find-entry {
+        flex: 1;
+        background: var(--status-warning-transparent);
+        color: var(--status-warning);
+        border: 1.5px solid var(--status-warning);
+        border-radius: 1rem;
+        padding: 0.9rem;
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        cursor: pointer;
+    }
+
     &__dismiss {
         flex: 1;
         background: var(--general-section-2);
@@ -404,6 +417,78 @@
         font-size: var(--text-size-xs);
         font-weight: bold;
         cursor: pointer;
+    }
+}
+
+// Live status card for ScannerStore.entry_watch — new capability, no direct reference
+// equivalent as a component (see scanner-entry-watch.tsx's header comment).
+.scanner-entry-watch {
+    border: 1.5px solid var(--status-warning);
+    border-radius: 1.4rem;
+    padding: 1.2rem;
+    background: var(--status-warning-transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+    }
+
+    &__title {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--status-warning);
+    }
+
+    &__cancel {
+        background: transparent;
+        color: var(--text-less-prominent);
+        border: 1px solid var(--border-normal);
+        border-radius: 0.8rem;
+        padding: 0.3rem 0.9rem;
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    &__phase {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+    }
+
+    &__desc,
+    &__progress {
+        font-size: var(--text-size-xxs);
+        color: var(--text-less-prominent);
+    }
+}
+
+// Duplicated from signal-engine.scss rather than referenced — .signal-engine-digit-strip is
+// the shared DigitStrip component's own class name (src/pages/signal-engine/components/
+// digit-strip.tsx, reused here for scanner-entry-watch.tsx's live tick strip), but its CSS
+// lives in signal-engine.scss's own per-page bundle, which isn't guaranteed to be loaded in a
+// session that only ever visits Scanner — same rationale scanner-live-digits.tsx's own
+// duplicated heat-grid-style CSS already documents.
+.signal-engine-digit-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+
+    &__dot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        color: var(--text-colored-background);
     }
 }
 
@@ -559,6 +644,78 @@
 
     &__arrow {
         font-size: var(--text-size-xxxs);
+    }
+}
+
+// Small embedded price chart for Rise/Fall results (scanner-mini-chart.tsx) — new capability,
+// no reference equivalent. Reuses signal-engine's SignalEngineChart component (via
+// SignalEngineStore, which is already actively monitoring some symbol from app startup
+// regardless of this tab — see scanner-mini-chart.tsx's header comment), so only the wrapper
+// chrome and a deliberately compact height are styled here.
+.scanner-mini-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    background: var(--general-section-1);
+    border: 1px solid var(--border-normal);
+    border-radius: 1rem;
+    padding: 1rem 1.2rem;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+    }
+
+    &__title {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-prominent);
+    }
+
+    &__timeframe {
+        width: 11rem;
+
+        .dc-select-native__container {
+            border-color: var(--border-normal);
+            border-radius: 0.8rem;
+        }
+
+        .dc-select-native__wrapper,
+        .dc-select-native__display,
+        .dc-select-native__picker {
+            height: 3rem;
+        }
+
+        .dc-select-native__display-text {
+            font-size: var(--text-size-xxs);
+            line-height: 3rem;
+        }
+    }
+
+    // Deliberately compact — "small" per the feature request, unlike the full Signal Engine
+    // page's chart (flex: 1 filling its whole column, min-height 24rem). Duplicated sizing
+    // chrome from signal-engine.scss's own .signal-engine-chart rather than importing it,
+    // same per-page-bundle rationale as .signal-engine-digit-strip above.
+    &__chart {
+        height: 18rem;
+        border-radius: 1.4rem;
+        overflow: hidden;
+        background: var(--general-main-1);
+
+        .signal-engine-chart {
+            width: 100%;
+            height: 100%;
+
+            // min-height: 0, not left unset: .signal-engine-chart's own rule (signal-engine.scss,
+            // loaded whenever that page has been visited this session) sets min-height: 24rem —
+            // a property this override wouldn't otherwise touch, since a more specific selector
+            // only wins on the properties it actually sets. Without this, the chart could still
+            // be forced past this wrapper's 18rem height depending on load order.
+            min-height: 0;
+            flex: none;
+        }
     }
 }
 

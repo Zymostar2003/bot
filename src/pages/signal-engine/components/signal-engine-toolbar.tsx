@@ -11,7 +11,7 @@ import { localize } from '@deriv-com/translations';
 // selects, since api_base.active_symbols already carries a real submarket_display_name per
 // symbol (see SignalEngineStore.symbol_options) rather than the reference's own
 // string-matched categories.
-const TIMEFRAME_OPTIONS = [
+export const TIMEFRAME_OPTIONS = [
     { text: '1 min', value: '60', group: localize('Minutes') },
     { text: '2 min', value: '120', group: localize('Minutes') },
     { text: '3 min', value: '180', group: localize('Minutes') },

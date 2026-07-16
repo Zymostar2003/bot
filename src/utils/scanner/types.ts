@@ -73,6 +73,26 @@ export type TScanResult = {
     trend?: TScanTrend;
 };
 
+// Faithful port of _scEntry (reference lines 21100-21108) — live state for the "Find Entry
+// Point" watcher (see entry-point.ts). One watch runs at a time, matching the reference's own
+// single-instance `_scEntry` object (starting a new watch always stops the previous one first).
+export type TEntryWatchPhase = 'waiting' | 'pullback' | 'digit_hunt' | 'found';
+
+export type TEntryDigit = {
+    digit: number | null;
+    label: string;
+};
+
+export type TEntryWatchState = {
+    result: TScanResult;
+    phase: TEntryWatchPhase;
+    pullbacks: number;
+    digit_hunt_ticks: number;
+    entry_digit: TEntryDigit | null;
+    recent_ticks: TFullHistoryTick[];
+    ticks_seen: number;
+};
+
 // window._DS toggle flags (reference lines 18567-18586). All fixed at their reference
 // defaults for v1 — no settings UI is built for these (see task scope notes).
 export type TScannerFilterFlags = {
