@@ -177,6 +177,10 @@ $smart-analysis-compact-width: 640px;
 // index-335-black-bars.html, lines 4586-4612, 1863-1895).
 .smart-analysis-digit-panel {
     display: grid;
+    width: 100%;
+    max-width: 60rem; // 600px — keeps the 10 digit circles from spreading across the full
+    // page width on wide/fullscreen screens
+    margin-inline: auto; // centers the (now capped) grid horizontally
 
     // minmax(0, 1fr), not plain 1fr: a bare 1fr column's minimum width defaults to its
     // content's min-content size (here the __circle's fixed 4.2rem), which can force the
@@ -256,6 +260,10 @@ $smart-analysis-compact-width: 640px;
     flex-direction: column;
     gap: 1.2rem;
     flex-shrink: 0;
+    width: 100%;
+    max-width: 60rem; // 600px — same cap as .smart-analysis-digit-panel, keeps the 50-node
+    // tick strip and its stats from spreading across the full page width
+    margin-inline: auto;
 
     // Faithful port of #sa-stat-left/#sa-stat-right (reference:
     // index-335-black-bars.html, lines 4629-4644, 11405-11408).
@@ -376,6 +384,10 @@ $smart-analysis-compact-width: 640px;
 
     &__bars {
         display: grid;
+        width: 100%;
+        max-width: 60rem; // 600px — same cap as .smart-analysis-digit-panel, keeps the 10-bar
+        // histogram from spreading across the full page width
+        margin-inline: auto;
 
         // minmax(0, 1fr) — same overflow-safety rationale as .smart-analysis-digit-panel
         // above (10 dense columns).
