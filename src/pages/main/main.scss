@@ -23,12 +23,12 @@
 
     &--left {
         left: 0;
-        background: linear-gradient(-88.07deg, transparent 1.63%, var(--general-section-1) 50.02%);
+        background: linear-gradient(-88.07deg, transparent 1.63%, #0c3a44 50.02%);
     }
 
     &--right {
         right: 0;
-        background: linear-gradient(88.07deg, transparent 1.63%, var(--general-section-1) 50.02%);
+        background: linear-gradient(88.07deg, transparent 1.63%, #0c3a44 50.02%);
     }
 }
 
@@ -70,17 +70,44 @@
         }
 
         .dc-tabs {
+            // Per-tab icon identity colors — distinct, non-semantic accents so each
+            // dashboard tab is recognizable at a glance instead of uniform grey.
+            --tab-icon-dashboard: #4c82fb;
+            --tab-icon-bot-builder: #8c6dff;
+            --tab-icon-charts: #26c6c6;
+            --tab-icon-tutorials: #ffa23a;
+            --tab-icon-tradingview: #3b5bfe;
+            --tab-icon-signal-engine: #22c55e;
+            --tab-icon-smart-analysis: #c450e0;
+            --tab-icon-scanner: #ffc53d;
+            --tab-icon-trade-setup: #ff5c5c;
+            --tab-icon-digit-psychology: #ff6fb5;
+            --tab-icon-tools: #8a97a8;
+
+            // LegacyGuide1pxIcon (Tutorials) is colored via .icon-general-fill-g-path's
+            // `g path { fill: var(--text-general) }` rule rather than its own fill prop —
+            // override that here instead of touching the shared global class.
+            .tutorials-tab-icon g path {
+                fill: var(--tab-icon-tutorials);
+            }
+
             &__active-line {
-                background-color: var(--general-main-1);
+                background-color: #155c68;
                 transition: none;
             }
 
             &__active {
-                background: var(--general-main-1);
+                background: #155c68;
+                color: #fff;
             }
 
             &__list {
-                background: var(--general-section-1);
+                // A trading-terminal nav bar stays a fixed dark, professional
+                // petrol/teal-blue regardless of the app's own light/dark theme toggle —
+                // so the active-tab highlight and all tab label text below are pinned to
+                // this same palette instead of following --general-main-1/--text-prominent.
+                background: linear-gradient(180deg, #0f4c5c 0%, #082a32 100%);
+                border-bottom: 1px solid #1c5866;
                 justify-content: start;
 
                 @include mobile-or-tablet-screen {
@@ -162,6 +189,10 @@
                 width: auto;
 
                 @include flex-center;
+
+                &:not(.dc-tabs__active) {
+                    color: #fff;
+                }
 
                 svg {
                     padding-inline-end: 0;

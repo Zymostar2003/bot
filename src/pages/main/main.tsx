@@ -22,11 +22,14 @@ import { handleOidcAuthFailure } from '@/utils/auth-utils';
 import {
     LabelPairedChartLineCaptionRegularIcon,
     LabelPairedChartTradingviewCaptionRegularIcon,
+    LabelPairedGaugeMaxCaptionRegularIcon,
     LabelPairedGearCaptionRegularIcon,
     LabelPairedLightbulbCaptionRegularIcon,
     LabelPairedObjectsColumnCaptionRegularIcon,
     LabelPairedPuzzlePieceTwoCaptionBoldIcon,
     LabelPairedSearchCaptionRegularIcon,
+    LabelPairedSignalCaptionRegularIcon,
+    LabelPairedSlidersCaptionRegularIcon,
 } from '@deriv/quill-icons/LabelPaired';
 import { LegacyGuide1pxIcon } from '@deriv/quill-icons/Legacy';
 import { requestOidcAuthentication } from '@deriv-com/auth-client';
@@ -138,9 +141,21 @@ const AppWrapper = observer(() => {
                 threshold: 0.5, // set offset 0.1 means trigger if atleast 10% of element in viewport
             }
         );
-        observer_dashboard.observe(el_dashboard);
-        observer_last_tab.observe(el_last_tab);
-    });
+        if (el_dashboard) observer_dashboard.observe(el_dashboard);
+        if (el_last_tab) observer_last_tab.observe(el_last_tab);
+
+        // No dependency array previously meant this ran on every re-render (this component
+        // re-renders often — it's mobx observer()-wrapped) without ever disconnecting the
+        // prior pair of observers, so they accumulated for the lifetime of the session: dozens
+        // of stale observers all still firing setLeftTabShadow/setRightTabShadow from old DOM
+        // references, racing each other. That's consistent with layout that "sometimes" looks
+        // right and "sometimes" doesn't — it gets worse the longer the session runs, not on a
+        // fixed trigger. Mount-once + disconnect-on-unmount instead.
+        return () => {
+            observer_dashboard.disconnect();
+            observer_last_tab.disconnect();
+        };
+    }, []);
 
     React.useEffect(() => {
         if (connectionStatus !== CONNECTION_STATUS.OPENED) {
@@ -305,7 +320,7 @@ const AppWrapper = observer(() => {
                                         <LabelPairedObjectsColumnCaptionRegularIcon
                                             height='24px'
                                             width='24px'
-                                            fill='var(--text-general)'
+                                            fill='var(--tab-icon-dashboard)'
                                         />
                                         <Localize i18n_default_text='Dashboard' />
                                     </>
@@ -320,7 +335,7 @@ const AppWrapper = observer(() => {
                                         <LabelPairedPuzzlePieceTwoCaptionBoldIcon
                                             height='24px'
                                             width='24px'
-                                            fill='var(--text-general)'
+                                            fill='var(--tab-icon-bot-builder)'
                                         />
                                         <Localize i18n_default_text='Bot Builder' />
                                     </>
@@ -333,7 +348,7 @@ const AppWrapper = observer(() => {
                                         <LabelPairedChartLineCaptionRegularIcon
                                             height='24px'
                                             width='24px'
-                                            fill='var(--text-general)'
+                                            fill='var(--tab-icon-charts)'
                                         />
                                         <Localize i18n_default_text='Charts' />
                                     </>
@@ -356,8 +371,8 @@ const AppWrapper = observer(() => {
                                         <LegacyGuide1pxIcon
                                             height='16px'
                                             width='16px'
-                                            fill='var(--text-general)'
-                                            className='icon-general-fill-g-path'
+                                            fill='var(--tab-icon-tutorials)'
+                                            className='icon-general-fill-g-path tutorials-tab-icon'
                                         />
                                         <Localize i18n_default_text='Tutorials' />
                                     </>
@@ -380,7 +395,7 @@ const AppWrapper = observer(() => {
                                         <LabelPairedChartTradingviewCaptionRegularIcon
                                             height='24px'
                                             width='24px'
-                                            fill='var(--text-general)'
+                                            fill='var(--tab-icon-tradingview)'
                                         />
                                         <Localize i18n_default_text='TradingView' />
                                     </>
@@ -393,7 +408,19 @@ const AppWrapper = observer(() => {
                                     <TradingView />
                                 </Suspense>
                             </div>
-                            <div label={<Localize i18n_default_text='Signal Engine' />} id='id-signal-engine'>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedSignalCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--tab-icon-signal-engine)'
+                                        />
+                                        <Localize i18n_default_text='Signal Engine' />
+                                    </>
+                                }
+                                id='id-signal-engine'
+                            >
                                 <Suspense
                                     fallback={
                                         <ChunkLoader message={localize('Please wait, loading signal engine...')} />
@@ -402,7 +429,19 @@ const AppWrapper = observer(() => {
                                     <SignalEngine />
                                 </Suspense>
                             </div>
-                            <div label={<Localize i18n_default_text='Smart Analysis' />} id='id-smart-analysis'>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedGaugeMaxCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--tab-icon-smart-analysis)'
+                                        />
+                                        <Localize i18n_default_text='Smart Analysis' />
+                                    </>
+                                }
+                                id='id-smart-analysis'
+                            >
                                 <Suspense
                                     fallback={
                                         <ChunkLoader message={localize('Please wait, loading smart analysis...')} />
@@ -417,7 +456,7 @@ const AppWrapper = observer(() => {
                                         <LabelPairedSearchCaptionRegularIcon
                                             height='24px'
                                             width='24px'
-                                            fill='var(--text-general)'
+                                            fill='var(--tab-icon-scanner)'
                                         />
                                         <Localize i18n_default_text='Scanner' />
                                     </>
@@ -430,7 +469,19 @@ const AppWrapper = observer(() => {
                                     <Scanner />
                                 </Suspense>
                             </div>
-                            <div label={<Localize i18n_default_text='⚡ Trade Setup' />} id='id-trade-setup'>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedSlidersCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--tab-icon-trade-setup)'
+                                        />
+                                        <Localize i18n_default_text='Trade Setup' />
+                                    </>
+                                }
+                                id='id-trade-setup'
+                            >
                                 <Suspense
                                     fallback={<ChunkLoader message={localize('Please wait, loading trade setup...')} />}
                                 >
@@ -443,7 +494,7 @@ const AppWrapper = observer(() => {
                                         <LabelPairedLightbulbCaptionRegularIcon
                                             height='24px'
                                             width='24px'
-                                            fill='var(--text-general)'
+                                            fill='var(--tab-icon-digit-psychology)'
                                         />
                                         <Localize i18n_default_text='Digit Psychology' />
                                     </>
@@ -464,7 +515,7 @@ const AppWrapper = observer(() => {
                                         <LabelPairedGearCaptionRegularIcon
                                             height='24px'
                                             width='24px'
-                                            fill='var(--text-general)'
+                                            fill='var(--tab-icon-tools)'
                                         />
                                         <Localize i18n_default_text='Tools' />
                                     </>

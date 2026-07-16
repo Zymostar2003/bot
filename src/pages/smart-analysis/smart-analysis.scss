@@ -24,6 +24,15 @@ $smart-analysis-compact-width: 640px;
     gap: 1.2rem;
     overflow: hidden;
 
+    // Capped, centered column on desktop (see _mixins.scss's dbot-centered-content) — this is
+    // a form/panel-style tab, not a canvas workspace, so it shouldn't stretch edge-to-edge on
+    // large/fullscreen displays. This also naturally clears .main__run-strategy-wrapper (the
+    // Run/Stop button pinned top-right) on any screen wider than ~1280px, since the button
+    // sits well inside the resulting side margin.
+    @include desktop-screen {
+        @include dbot-centered-content;
+    }
+
     @include mobile-or-tablet-screen {
         height: calc(100vh - 11rem);
     }
@@ -168,7 +177,11 @@ $smart-analysis-compact-width: 640px;
 // index-335-black-bars.html, lines 4586-4612, 1863-1895).
 .smart-analysis-digit-panel {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+
+    // minmax(0, 1fr), not plain 1fr: a bare 1fr column's minimum width defaults to its
+    // content's min-content size (here the __circle's fixed 4.2rem), which can force the
+    // grid wider than its container instead of shrinking to fit at narrower widths.
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2rem 0.8rem;
     padding: 1.6rem 0.4rem 0.4rem;
     flex-shrink: 0;
@@ -178,6 +191,7 @@ $smart-analysis-compact-width: 640px;
         display: flex;
         flex-direction: column;
         align-items: center;
+        min-width: 0;
     }
 
     // Structural change from the reference's saMoveCursor: rendered inline in the current
@@ -276,10 +290,15 @@ $smart-analysis-compact-width: 640px;
 // signal-engine's) without importing/modifying it.
 .smart-analysis-digit-picker {
     display: grid;
-    grid-template-columns: repeat(11, 1fr);
+
+    // minmax(0, 1fr), not plain 1fr: with 11 dense columns this is the most likely candidate
+    // to overflow its container at narrower widths — see .smart-analysis-digit-panel above
+    // for the full rationale.
+    grid-template-columns: repeat(11, minmax(0, 1fr));
     gap: 0.4rem;
 
     &__btn {
+        min-width: 0;
         padding: 0.6rem 0.2rem;
         border-radius: 0.6rem;
         border: 1.5px solid var(--border-normal);
@@ -357,7 +376,10 @@ $smart-analysis-compact-width: 640px;
 
     &__bars {
         display: grid;
-        grid-template-columns: repeat(10, 1fr);
+
+        // minmax(0, 1fr) — same overflow-safety rationale as .smart-analysis-digit-panel
+        // above (10 dense columns).
+        grid-template-columns: repeat(10, minmax(0, 1fr));
         gap: 0.3rem;
         align-items: end;
         margin-bottom: 1.2rem;
@@ -368,6 +390,7 @@ $smart-analysis-compact-width: 640px;
         flex-direction: column;
         align-items: center;
         gap: 0.3rem;
+        min-width: 0;
     }
 
     &__bar-track {

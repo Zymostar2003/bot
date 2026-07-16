@@ -314,6 +314,27 @@
 $max-mobile-width: 600px;
 $min-desktop-width: 1280px;
 
+// Shared cap for form/panel-style dashboard tabs (Dashboard, Tutorials, Signal Engine, Smart
+// Analysis, Scanner, Digit Psychology, Trade Setup, Tools) so they read as a balanced, centered
+// column on large/fullscreen displays instead of stretching edge-to-edge. Deliberately NOT
+// applied to Charts, TradingView, or Bot Builder — those are canvas-style workspaces that need
+// their full fluid width.
+// Deliberately narrower than $min-desktop-width (the breakpoint that turns this on): if the two
+// matched, the margin would be ~0 right at the point centering first engages (~1280px-wide
+// windows), only growing on wider screens — a gap that's barely visible on a common laptop
+// width and only becomes obvious once the screen is quite a bit wider, which is exactly why it
+// could look "sometimes centered, sometimes not" depending on the exact window size being
+// tested. This value guarantees a clearly visible margin on both sides even right at that
+// threshold.
+$dbot-content-max-width: 1100px;
+
+@mixin dbot-centered-content {
+    max-width: $dbot-content-max-width;
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+}
+
 @mixin mobile-screen {
     @media (max-width: #{$max-mobile-width}) {
         @content;

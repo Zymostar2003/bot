@@ -22,13 +22,22 @@ $digit-psychology-collapse-width: 1024px;
     flex-direction: column;
     overflow: hidden;
 
+    // Capped, centered column on desktop (see _mixins.scss's dbot-centered-content) — this is
+    // a form/panel-style tab, not a canvas workspace, so it shouldn't stretch edge-to-edge on
+    // large/fullscreen displays. This also naturally clears .main__run-strategy-wrapper (the
+    // Run/Stop button pinned top-right) on any screen wider than ~1280px, since the button
+    // sits well inside the resulting side margin.
+    @include desktop-screen {
+        @include dbot-centered-content;
+    }
+
     @include mobile-or-tablet-screen {
         height: calc(100vh - 11rem);
     }
 
     &__body {
         display: flex;
-        gap: 1.2rem;
+        gap: 0.8rem;
         flex: 1;
         min-height: 0;
 
@@ -37,11 +46,14 @@ $digit-psychology-collapse-width: 1024px;
         }
     }
 
+    // Trimmed from 20rem: now that the page itself is capped at $dbot-content-max-width, the
+    // sidebar's share of that already-narrower column matters more — a smaller fixed width
+    // leaves __main more room to stay comfortably 5-column instead of compressing/wrapping.
     &__sidebar {
         display: flex;
         flex-direction: column;
-        gap: 1.2rem;
-        width: 20rem;
+        gap: 0.8rem;
+        width: 17rem;
         flex-shrink: 0;
         overflow-y: auto;
 
@@ -374,7 +386,11 @@ $digit-psychology-collapse-width: 1024px;
 
     &__grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+
+        // minmax(0, 1fr), not plain 1fr: a bare 1fr column's minimum width defaults to its
+        // content's min-content size, so the larger digit font below could force columns
+        // (and the whole grid) wider than the container instead of shrinking to fit.
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 0.5rem;
     }
 
@@ -383,6 +399,7 @@ $digit-psychology-collapse-width: 1024px;
         flex-direction: column;
         align-items: center;
         gap: 0.2rem;
+        min-width: 0;
         padding: 0.6rem 0.2rem;
         border-radius: 0.8rem;
         border: 1.5px solid var(--border-normal);
@@ -397,7 +414,7 @@ $digit-psychology-collapse-width: 1024px;
     }
 
     &__digit {
-        font-size: var(--text-size-xs);
+        font-size: calc(var(--text-size-xs) * 2.5);
         font-weight: bold;
         color: var(--text-general);
     }
@@ -411,7 +428,9 @@ $digit-psychology-collapse-width: 1024px;
 // Faithful port of #ou-dgrid (reference: index-335-black-bars.html, lines 14150-14159).
 .digit-psychology-digit-heat-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+
+    // minmax(0, 1fr) — same overflow fix as .digit-psychology-barrier-selector__grid above.
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.5rem;
 
     &__cell {
@@ -419,6 +438,7 @@ $digit-psychology-collapse-width: 1024px;
         flex-direction: column;
         align-items: center;
         gap: 0.2rem;
+        min-width: 0;
         padding: 0.6rem 0.2rem;
         border-radius: 0.8rem;
         color: var(--text-colored-background);
@@ -429,7 +449,7 @@ $digit-psychology-collapse-width: 1024px;
     }
 
     &__digit {
-        font-size: var(--text-size-xs);
+        font-size: calc(var(--text-size-xs) * 2.5);
         font-weight: bold;
     }
 
@@ -493,6 +513,7 @@ $digit-psychology-collapse-width: 1024px;
 
     &__digit {
         flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -503,6 +524,10 @@ $digit-psychology-collapse-width: 1024px;
         font-size: var(--text-size-xxxs);
         font-weight: bold;
         color: var(--text-less-prominent);
+
+        &-num {
+            font-size: calc(var(--text-size-xxxs) * 2.5);
+        }
 
         &--strong {
             background: var(--status-success);
@@ -615,7 +640,7 @@ $digit-psychology-collapse-width: 1024px;
     overflow: hidden;
 
     &__digit {
-        font-size: var(--text-size-xxs);
+        font-size: calc(var(--text-size-xxs) * 2.5);
         font-weight: bold;
         color: var(--text-general);
         z-index: 1;

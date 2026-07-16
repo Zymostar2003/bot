@@ -100,7 +100,7 @@ const OverUnderPanel = observer(() => {
                                 'digit-psychology-ou-group__digit--strong': p1000[d].pct >= 10,
                             })}
                         >
-                            <span>{d}</span>
+                            <span className='digit-psychology-ou-group__digit-num'>{d}</span>
                             <span>{p1000[d].pct.toFixed(1)}%</span>
                         </div>
                     ))}
@@ -155,7 +155,7 @@ const OverUnderPanel = observer(() => {
                                 }
                             )}
                         >
-                            <span>{d}</span>
+                            <span className='digit-psychology-ou-group__digit-num'>{d}</span>
                             <span>{p1000[d].pct.toFixed(1)}%</span>
                         </div>
                     ))}

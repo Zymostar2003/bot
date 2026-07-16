@@ -15,6 +15,10 @@
     height: calc(100vh - 17.2rem);
     display: flex;
 
+    // Deliberately full-width, unlike the panel-style tabs (see _mixins.scss's
+    // dbot-centered-content) — this is a canvas-style chart workspace that needs its full
+    // fluid width, same category as Charts and Bot Builder.
+
     @include mobile-or-tablet-screen {
         height: calc(100vh - 11rem);
     }
