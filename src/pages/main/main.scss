@@ -70,10 +70,26 @@
         }
 
         .dc-tabs {
+            // The tab grid (.dc-tabs, display: grid) defines only rows — `grid-template-rows:
+            // auto 1fr` via --top — and no columns, so it falls back to a single *implicit*
+            // `auto` column. An auto column is only guaranteed to fill the grid container while
+            // its content is about as wide as the container; on a very wide viewport (most
+            // visibly the browser Fullscreen API on a large monitor) it can settle at its
+            // content's intrinsic width and sit at the column's start. That collapses
+            // .dc-tabs__content to roughly content-width, pinned to the LEFT — so every centered
+            // form/panel tab inside it (Signal Engine, Smart Analysis, Digit Psychology, Agent,
+            // Trade Setup, Tools, Copy Trading, …) loses the full-width containing block its own
+            // `margin-inline: auto` needs and ends up stuck on the left instead of centered. At
+            // normal window widths the content nearly fills the row, so it only shows up once the
+            // viewport gets much wider. Pinning an explicit full-width column removes the
+            // ambiguity: the content cell always spans the container, so each page centers.
+            grid-template-columns: minmax(0, 1fr);
+
             // Per-tab icon identity colors — distinct, non-semantic accents so each
             // dashboard tab is recognizable at a glance instead of uniform grey.
             --tab-icon-dashboard: #4c82fb;
             --tab-icon-bot-builder: #8c6dff;
+            --tab-icon-deltaprime-bots: #d4a017;
             --tab-icon-charts: #26c6c6;
             --tab-icon-tutorials: #ffa23a;
             --tab-icon-tradingview: #3b5bfe;
@@ -83,6 +99,8 @@
             --tab-icon-trade-setup: #ff5c5c;
             --tab-icon-digit-psychology: #ff6fb5;
             --tab-icon-tools: #8a97a8;
+            --tab-icon-agent: #38bdf8;
+            --tab-icon-copy-trading: #a3e635;
 
             // LegacyGuide1pxIcon (Tutorials) is colored via .icon-general-fill-g-path's
             // `g path { fill: var(--text-general) }` rule rather than its own fill prop —
@@ -111,21 +129,30 @@
                 justify-content: start;
                 box-sizing: border-box;
 
-                // Same right-side clearance as .dashboard__chart-wrapper (this file, further
-                // down) — reserves room so the last tab icon (Tools) never renders underneath
                 // .main__run-strategy-wrapper (the Run/Stop button + its contract-stage
-                // animation, pinned top-right, position: absolute, z-index: 2) on desktop/full
-                // screen. padding-inline-end (not max-width): this element carries the tab
-                // bar's own background gradient, so its box must stay the full row width —
-                // only the icons inside need to stop short, not the background itself.
-                // overflow-x: auto is the real safety net here, not the padding above — the
-                // items are width: auto (sized to their own content, not a shrinkable
-                // percentage of this row — see __item's own comment), so on a narrower desktop
-                // window 11 tabs' natural combined width can still exceed the available space.
-                // Without this, that overflow was being silently clipped by .main's own
-                // overflow: hidden instead of staying reachable.
+                // animation text — "Bot is not running" is a full sentence, wider than a
+                // simple icon — pinned top-right, position: absolute, z-index: 2) on desktop/
+                // full screen. max-width caps the row itself to roughly its first 7 tabs'
+                // worth of width (108rem is an estimate of their combined natural width) — but
+                // a flat 108rem alone can still land the row's own right edge under the button
+                // on narrower desktop widths, since 108rem doesn't know how much room is
+                // actually available before the button starts. min() takes whichever is
+                // smaller: 108rem, or the container's own width minus an 18rem clearance for
+                // the button — so the row's right edge always stops short of it, on any
+                // desktop width, and overflow-x: auto makes tabs past that point (including
+                // the last one) reachable by scrolling within whatever room is actually left.
                 @include desktop-screen {
-                    padding-inline-end: 8rem;
+                    // The bar is capped to stop short of the right edge so it never runs under
+                    // .main__run-strategy-wrapper (the top-right "Bot is not running" button) —
+                    // that keeps the button clear and on top instead of the scrolling tab strip
+                    // repainting over it. The button ("Bot is not running" — a full sentence) is
+                    // wide, so reserve 34rem (18rem left the last tabs tucked under it; 26rem
+                    // still left ~2cm of the bar's edge overlapping the button).
+                    max-width: min(108rem, calc(100% - 34rem));
+
+                    // Trailing scroll overrun so the last tabs (Agent, Copy Trading) can still be
+                    // scrolled fully into view within the capped bar rather than staying off-edge.
+                    padding-inline-end: 24rem;
                     overflow-x: auto;
                     overflow-y: hidden;
                     scrollbar-width: none;
@@ -353,8 +380,14 @@
         // page's own DOM). Deliberately NOT centered/capped like the panel-style tabs — this
         // stays a full-bleed canvas otherwise, just short enough on the right to clear the
         // button and its scale.
+        // Baked into `width` via min() below (once per state) rather than a separate
+        // `max-width` layered on top of each state's own `width` — two declarations on
+        // different properties composing correctly across a base rule + modifier classes is
+        // exactly the kind of thing that's easy to get wrong (or to have a browser/SmartChart
+        // resize-observer sample mid-transition and never re-check), and this was landing
+        // inconsistently. One deterministic width per state removes that ambiguity entirely.
         @include desktop-screen {
-            max-width: calc(100% - 8rem);
+            width: calc(100% - 8rem);
         }
 
         @include mobile-or-tablet-screen {
@@ -373,7 +406,7 @@
         }
 
         &--expanded {
-            width: calc(100vw - 39.8rem);
+            width: min(calc(100vw - 39.8rem), calc(100% - 8rem));
         }
 
         &--modal {

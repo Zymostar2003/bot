@@ -17,7 +17,6 @@
     height: calc(100vh - 17.2rem);
     display: flex;
     flex-direction: column;
-    background: var(--general-main-1);
     overflow: hidden;
 
     // Capped, centered column on desktop (see _mixins.scss's dbot-centered-content) — this is
@@ -33,6 +32,10 @@
         height: calc(100vh - 11rem);
     }
 
+    // Capped and centered the same as __tabs/__settings/__scan-controls/__results below
+    // (600px, matching Smart Analysis/Agent) — this sits outside __body, so without its own
+    // cap it spanned the full 1100px outer shell while everything inside __body was narrower,
+    // same mismatch Agent's header had.
     &__header {
         display: flex;
         align-items: center;
@@ -40,6 +43,10 @@
         flex-shrink: 0;
         padding: 1.6rem;
         border-bottom: 1px solid var(--border-normal);
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
     }
 
     &__header-titles {
@@ -114,6 +121,10 @@
         flex-wrap: wrap;
         gap: 0.6rem;
         flex-shrink: 0;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
     }
 
     &__tab {
@@ -152,6 +163,10 @@
         align-items: center;
         gap: 0.8rem;
         flex-shrink: 0;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
     }
 
     &__settings-label {
@@ -175,6 +190,10 @@
         flex-direction: column;
         gap: 0.8rem;
         flex-shrink: 0;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
     }
 
     // Faithful port of .scout-scan-btn (reference line 17252).
@@ -226,6 +245,10 @@
         display: flex;
         flex-direction: column;
         gap: 1.2rem;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
     }
 
     // Market Watch fallback heading (scanner-results.tsx) — new capability, no reference

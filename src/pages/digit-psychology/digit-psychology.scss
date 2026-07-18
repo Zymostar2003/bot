@@ -473,6 +473,15 @@ $digit-psychology-collapse-width: 1024px;
     flex-direction: column;
     flex-shrink: 0;
     gap: 1.2rem;
+
+    // Capped and centered within __main (same 600px cap used across Smart Analysis/Agent) so
+    // every card nested inside — live-row, barrier grid, heat grid, OVER/UNDER group cards —
+    // is constrained in one place instead of spreading across __main's full remaining width
+    // on large/fullscreen displays.
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 60rem;
+    margin-inline: auto;
 }
 
 .digit-psychology-ou-group {
@@ -554,6 +563,12 @@ $digit-psychology-collapse-width: 1024px;
     flex-direction: column;
     flex-shrink: 0;
     gap: 1.2rem;
+
+    // Same 600px cap/center as .digit-psychology-ou-panel above.
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 60rem;
+    margin-inline: auto;
 }
 
 .digit-psychology-eo-best-signal {

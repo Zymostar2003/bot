@@ -3,6 +3,7 @@ import BlocklyStore from './blockly-store';
 import ChartStore from './chart-store';
 import ClientStore from './client-store';
 import CommonStore from './common-store';
+import CopyTradingStore from './copy-trading-store';
 import DashboardStore from './dashboard-store';
 import DataCollectionStore from './data-collection-store';
 import FlyoutHelpStore from './flyout-help-store';
@@ -50,6 +51,7 @@ export default class RootStore {
     public smart_analysis: SmartAnalysisStore;
     public scanner: ScannerStore;
     public trade_setup: TradeSetupStore;
+    public copy_trading: CopyTradingStore;
 
     public ui: UiStore;
     public client: ClientStore;
@@ -106,5 +108,8 @@ export default class RootStore {
         // Depends on this.quick_strategy (already constructed above) for its Run Bot write
         // path (TradeSetupStore.runBot -> quick_strategy.onSubmit).
         this.trade_setup = new TradeSetupStore(this);
+        // Depends on this.client (already constructed above) for its is_real_account gate on
+        // the Leader panel's allow_copiers toggle (not applicable for virtual accounts).
+        this.copy_trading = new CopyTradingStore(this);
     }
 }

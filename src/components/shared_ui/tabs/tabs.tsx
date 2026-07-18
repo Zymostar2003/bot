@@ -125,6 +125,17 @@ const Tabs = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [active_index]);
 
+    // Keeps the clicked/active tab visible whenever the tab list itself is horizontally
+    // scrollable (e.g. dbot's own main nav bar, capped to ~7 tabs' width with the rest reached
+    // by scrolling — see main.scss's __list) — without this, clicking a tab past whatever's
+    // currently in view left it selected but still off-screen, with no way to tell it had
+    // actually switched short of scrolling manually to check. `inline: 'center'` centers it
+    // within the scrollable viewport rather than just nudging it minimally into view; a no-op
+    // when the list isn't actually overflowing.
+    React.useEffect(() => {
+        active_tab_ref.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }, [active_tab_index]);
+
     const onClickTabItem = (index: number) => {
         if (should_update_hash) {
             const hash = children[index]?.props['data-hash'];

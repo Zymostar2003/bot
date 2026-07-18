@@ -1,0 +1,319 @@
+@use 'components/shared/styles/constants' as *;
+@use 'components/shared/styles/mixins' as *;
+
+/**
+ * @define copy-trading
+ */
+
+// Same viewport-anchoring technique as every other dashboard-tab page this session (see
+// signal-engine.scss's `.signal-engine` block comment for the full ancestor-chain rationale),
+// and the same outer-shell/inner-scroll split as Agent/Digit Psychology (see agent.scss's
+// block comment for why centering and scrolling are deliberately on two different elements).
+.copy-trading {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 1.6rem;
+    height: calc(100vh - 17.2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    overflow: hidden;
+
+    @include desktop-screen {
+        @include dbot-centered-content;
+    }
+
+    @include mobile-or-tablet-screen {
+        height: calc(100vh - 11rem);
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
+        box-sizing: border-box;
+    }
+
+    &__title {
+        font-size: var(--text-size-m);
+        font-weight: bold;
+        color: var(--text-prominent);
+        margin-right: auto;
+    }
+
+    &__refresh {
+        background: var(--button-primary-default);
+        color: var(--text-colored-background);
+        border: none;
+        border-radius: 0.8rem;
+        padding: 0.9rem 1.4rem;
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+
+    &__body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+        overflow-y: auto;
+        padding-bottom: 4.8rem;
+
+        @include mobile-or-tablet-screen {
+            padding-bottom: 7.6rem;
+        }
+    }
+}
+
+.copy-trading-card {
+    width: 100%;
+    max-width: 60rem; // 600px — same cap used across every ported tab this session
+    margin-inline: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: var(--general-section-1);
+    border: 1px solid var(--border-normal);
+    border-radius: 1.2rem;
+    padding: 1.4rem;
+    flex-shrink: 0;
+
+    &__title {
+        font-size: var(--text-size-s);
+        font-weight: bold;
+        color: var(--text-prominent);
+    }
+
+    &__row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
+
+        &--between {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+    }
+
+    &__label {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--text-less-prominent);
+        text-transform: uppercase;
+        letter-spacing: 0.05rem;
+    }
+
+    &__hint {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+    }
+
+    &__error {
+        font-size: var(--text-size-xxs);
+        color: var(--status-danger);
+    }
+
+    &__empty {
+        font-size: var(--text-size-xs);
+        color: var(--text-less-prominent);
+    }
+
+    &__token-row {
+        display: flex;
+        gap: 0.6rem;
+        min-width: 0;
+    }
+
+    &__input {
+        flex: 1;
+        min-width: 0;
+        height: 3.6rem;
+        border-radius: 0.8rem;
+        border: 1px solid var(--border-normal);
+        background: var(--general-section-2);
+        color: var(--text-general);
+        padding: 0 1rem;
+        font-size: var(--text-size-xs);
+        box-sizing: border-box;
+    }
+
+    &__btn {
+        flex-shrink: 0;
+        background: var(--general-section-2);
+        border: 1.5px solid var(--border-normal);
+        border-radius: 0.8rem;
+        padding: 0 1.2rem;
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+
+    &__toggle {
+        min-width: 6rem;
+        border-radius: 2rem;
+        border: 1.5px solid var(--border-normal);
+        background: var(--general-section-2);
+        color: var(--text-less-prominent);
+        font-weight: bold;
+        font-size: var(--text-size-xs);
+        padding: 0.6rem 1.4rem;
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        &--on {
+            border-color: var(--status-success);
+            background: var(--status-success-transparent);
+            color: var(--status-success);
+        }
+    }
+
+    &__start-btn {
+        width: 100%;
+        padding: 1.2rem;
+        border: none;
+        border-radius: 1rem;
+        background: var(--button-primary-default);
+        color: var(--text-colored-background);
+        font-weight: bold;
+        font-size: var(--text-size-s);
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-height: 20rem;
+        overflow-y: auto;
+        min-width: 0;
+    }
+
+    &__list-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        background: var(--general-section-2);
+        border: 1px solid var(--border-normal);
+        border-radius: 0.8rem;
+        padding: 0.7rem 1rem;
+        min-width: 0;
+        font-size: var(--text-size-xs);
+        color: var(--text-general);
+    }
+
+    &__list-main {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+
+    &__list-token {
+        font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__list-since {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+    }
+
+    &__stop-btn {
+        flex-shrink: 0;
+        background: var(--transparent-danger);
+        border: 1.5px solid var(--status-danger);
+        color: var(--status-danger);
+        border-radius: 0.8rem;
+        padding: 0.6rem 1.2rem;
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+}
+
+.copy-trading-stats {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+
+    &__item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        background: var(--general-section-2);
+        border: 1px solid var(--border-normal);
+        border-radius: 0.8rem;
+        padding: 0.7rem 0.4rem;
+        min-width: 0;
+    }
+
+    &__label {
+        font-size: var(--text-size-xxxs);
+        text-transform: uppercase;
+        letter-spacing: 0.06rem;
+        color: var(--text-less-prominent);
+        text-align: center;
+    }
+
+    &__value {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+    }
+}
+
+.copy-trading-confirm-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+
+    &__checklist {
+        margin: 0;
+        padding-inline-start: 1.8rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-size: var(--text-size-xs);
+        color: var(--text-general);
+    }
+}

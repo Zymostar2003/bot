@@ -1,0 +1,354 @@
+@use 'components/shared/styles/constants' as *;
+@use 'components/shared/styles/mixins' as *;
+
+/**
+ * @define agent
+ */
+
+// Same viewport-anchoring technique as every other dashboard-tab page this session (see
+// signal-engine.scss's `.signal-engine` block comment for the full ancestor-chain rationale).
+// Structural note: centering and scrolling are deliberately split across two different
+// elements (this outer shell + __body below), matching Digit Psychology/Scanner exactly —
+// combining "is the centered/capped box" and "is the scrolling box" on the same element (the
+// original version of this file) is a real structural difference from every other centered
+// tab, not just a cosmetic one: a scrolling element's own visible scrollbar sits at *its own*
+// right edge, and centering + capping + scrolling all landing on one element is more fragile
+// than the outer-shell/inner-scroll split every other page already uses.
+.agent {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 1.6rem;
+    height: calc(100vh - 17.2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    overflow: hidden;
+
+    // Capped, centered column on desktop (see _mixins.scss's dbot-centered-content) — this is
+    // a form/panel-style tab, not a canvas workspace, same category as Scanner/Smart Analysis.
+    @include desktop-screen {
+        @include dbot-centered-content;
+    }
+
+    @include mobile-or-tablet-screen {
+        height: calc(100vh - 11rem);
+    }
+
+    // Capped and centered the same as every card below (bar chart, stats row, action box,
+    // Send Agent results) — previously this spanned the full width of the outer 1100px shell
+    // while the cards were capped at 600px, so the header's select/buttons sat out near the
+    // shell's edges instead of lining up with the narrower column the rest of the page reads
+    // as, and on some widths the trailing button was pushed past the visible area entirely.
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
+        box-sizing: border-box;
+    }
+
+    &__title {
+        font-size: var(--text-size-m);
+        font-weight: bold;
+        color: var(--text-prominent);
+        margin-right: auto;
+    }
+
+    &__asset-select {
+        width: 16rem;
+
+        .dc-select-native__container {
+            border-color: var(--border-normal);
+            border-radius: 0.8rem;
+        }
+
+        .dc-select-native__wrapper,
+        .dc-select-native__display,
+        .dc-select-native__picker {
+            height: 3.6rem;
+        }
+
+        .dc-select-native__display-text {
+            font-size: var(--text-size-xs);
+            line-height: 3.6rem;
+        }
+    }
+
+    &__refresh,
+    &__send {
+        background: var(--button-primary-default);
+        color: var(--text-colored-background);
+        border: none;
+        border-radius: 0.8rem;
+        padding: 0.9rem 1.4rem;
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+
+    // Send Agent gets its own accent so it reads as the "bigger" action next to Refresh Data.
+    &__send {
+        background: var(--status-info);
+    }
+
+    // The actual scroll region (matching Digit Psychology's own __main) — this is where
+    // padding-bottom breathing room belongs, not on the outer centered/capped shell above.
+    &__body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+        overflow-y: auto;
+        padding-bottom: 4.8rem;
+
+        @include mobile-or-tablet-screen {
+            padding-bottom: 7.6rem;
+        }
+    }
+
+    &__loading {
+        padding: 2.4rem;
+        text-align: center;
+        color: var(--text-less-prominent);
+        font-size: var(--text-size-xs);
+    }
+
+    &__stats-row {
+        display: grid;
+        width: 100%;
+        max-width: 60rem; // 600px — same cap as Smart Analysis's digit-panel/last-50, keeps
+        margin-inline: auto; // this from spreading across the full page width on wide screens
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.8rem;
+    }
+
+    &__stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.2rem;
+        background: var(--general-section-1);
+        border: 1px solid var(--border-normal);
+        border-radius: 1rem;
+        padding: 0.8rem 0.4rem;
+        min-width: 0;
+    }
+
+    &__stat-label {
+        font-size: var(--text-size-xxxs);
+        text-transform: uppercase;
+        letter-spacing: 0.1rem;
+        color: var(--text-less-prominent);
+    }
+
+    &__stat-value {
+        font-size: var(--text-size-s);
+        font-weight: bold;
+        color: var(--text-general);
+    }
+
+    &__context {
+        width: 100%;
+        max-width: 60rem;
+        margin-inline: auto;
+        box-sizing: border-box;
+        text-align: center;
+        font-size: var(--text-size-xxs);
+        color: var(--text-less-prominent);
+    }
+
+    &__footer {
+        flex-shrink: 0;
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+        text-align: right;
+    }
+}
+
+.agent-bar-chart {
+    display: grid;
+    width: 100%;
+    max-width: 60rem; // 600px — same cap as Smart Analysis's digit-panel/last-50, keeps this
+    margin-inline: auto; // from spreading across the full page width on wide screens
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 0.4rem;
+    align-items: end;
+    background: var(--general-section-1);
+    border: 1px solid var(--border-normal);
+    border-radius: 1rem;
+    padding: 1.2rem 0.8rem 0.8rem;
+    flex-shrink: 0;
+
+    &__col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3rem;
+        min-width: 0;
+    }
+
+    &__track {
+        width: 100%;
+        height: 9rem;
+        display: flex;
+        align-items: flex-end;
+    }
+
+    &__fill {
+        width: 100%;
+        border-radius: 0.3rem 0.3rem 0 0;
+        background: var(--button-primary-default);
+        transition: height 0.3s ease;
+    }
+
+    &__digit {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+    }
+}
+
+.agent-action-box {
+    width: 100%;
+    max-width: 60rem; // 600px — same cap as Smart Analysis's digit-panel/last-50, keeps this
+    margin-inline: auto; // from spreading across the full page width on wide screens
+    box-sizing: border-box;
+    border-radius: 1rem;
+    padding: 1.2rem;
+    font-size: var(--text-size-s);
+    font-weight: bold;
+    text-align: center;
+    flex-shrink: 0;
+
+    &--go {
+        background: var(--status-warning-transparent);
+        color: var(--status-warning);
+        border: 1.5px solid var(--status-warning);
+    }
+
+    &--wait {
+        background: var(--general-section-1);
+        color: var(--text-less-prominent);
+        border: 1px solid var(--border-normal);
+    }
+}
+
+// Send Agent's multi-asset results list — new capability, no reference equivalent. Rows are
+// clickable: picking one switches the single-asset view (.agent above) to that asset, letting
+// a user drill from "best across everything" into the full breakdown for one of them.
+.agent-send-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    background: var(--general-section-1);
+    border: 1px solid var(--border-normal);
+    border-radius: 1rem;
+    padding: 1rem 1.2rem;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    min-width: 0;
+
+    // 60rem (600px) — same cap as Smart Analysis's digit-panel/last-50, keeps this from
+    // spreading across the full page width on wide screens.
+    width: 100%;
+    max-width: 60rem;
+    margin-inline: auto;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    &__title {
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-prominent);
+    }
+
+    &__updated {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-height: 24rem;
+        overflow-y: auto;
+        min-width: 0;
+    }
+
+    // Buttons, not divs — a native <button> carries its own UA-default sizing behavior on
+    // top of the usual flex-item min-width: auto quirk (see .digit-psychology-digit-heat-grid
+    // etc.'s own minmax(0, 1fr)/min-width: 0 fixes for the same underlying issue), so it needs
+    // the same explicit min-width: 0 override, plus box-sizing so the 100% width actually
+    // includes its own padding/border instead of adding to it.
+    &__row {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        background: var(--general-section-2);
+        border: 1px solid var(--border-normal);
+        border-radius: 0.8rem;
+        padding: 0.7rem 1rem;
+        cursor: pointer;
+        text-align: left;
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+
+        &:hover {
+            border-color: var(--button-primary-default);
+        }
+    }
+
+    &__asset {
+        flex: 1;
+        min-width: 0;
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__chip {
+        flex-shrink: 0;
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        color: var(--status-info);
+        background: var(--transparent-info);
+        border-radius: 0.6rem;
+        padding: 0.2rem 0.7rem;
+        white-space: nowrap;
+    }
+
+    &__confidence {
+        flex-shrink: 0;
+        font-size: var(--text-size-xs);
+        font-weight: bold;
+        color: var(--text-general);
+        min-width: 3.6rem;
+        text-align: right;
+    }
+}

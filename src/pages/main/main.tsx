@@ -24,12 +24,15 @@ import {
     LabelPairedChartTradingviewCaptionRegularIcon,
     LabelPairedGaugeMaxCaptionRegularIcon,
     LabelPairedGearCaptionRegularIcon,
+    LabelPairedGrid2CaptionRegularIcon,
     LabelPairedLightbulbCaptionRegularIcon,
+    LabelPairedLocationCrosshairsCaptionRegularIcon,
     LabelPairedObjectsColumnCaptionRegularIcon,
     LabelPairedPuzzlePieceTwoCaptionBoldIcon,
     LabelPairedSearchCaptionRegularIcon,
     LabelPairedSignalCaptionRegularIcon,
     LabelPairedSlidersCaptionRegularIcon,
+    LabelPairedUsersCaptionRegularIcon,
 } from '@deriv/quill-icons/LabelPaired';
 import { LegacyGuide1pxIcon } from '@deriv/quill-icons/Legacy';
 import { requestOidcAuthentication } from '@deriv-com/auth-client';
@@ -41,6 +44,7 @@ import Dashboard from '../dashboard';
 import RunStrategy from '../dashboard/run-strategy';
 import './main.scss';
 
+const DeltaprimeBots = lazy(() => import('../deltaprime-bots'));
 const ChartWrapper = lazy(() => import('../chart/chart-wrapper'));
 const Tutorial = lazy(() => import('../tutorials'));
 const TradingView = lazy(() => import('../tradingview'));
@@ -50,6 +54,8 @@ const Scanner = lazy(() => import('../scanner'));
 const TradeSetup = lazy(() => import('../trade-setup'));
 const DigitPsychology = lazy(() => import('../digit-psychology'));
 const Tools = lazy(() => import('../tools'));
+const Agent = lazy(() => import('../agent'));
+const CopyTrading = lazy(() => import('../copy-trading'));
 
 const AppWrapper = observer(() => {
     const { connectionStatus } = useApiBase();
@@ -84,6 +90,7 @@ const AppWrapper = observer(() => {
     const hash = [
         'dashboard',
         'bot_builder',
+        'deltaprime_bots',
         'chart',
         'tutorial',
         'tradingview',
@@ -93,6 +100,8 @@ const AppWrapper = observer(() => {
         'trade_setup',
         'digit_psychology',
         'tools',
+        'agent',
+        'copy_trading',
     ];
     const { isDesktop } = useDevice();
     const location = useLocation();
@@ -112,7 +121,7 @@ const AppWrapper = observer(() => {
 
     React.useEffect(() => {
         const el_dashboard = document.getElementById('id-dbot-dashboard');
-        const el_last_tab = document.getElementById('id-tools');
+        const el_last_tab = document.getElementById('id-copy-trading');
 
         const observer_dashboard = new window.IntersectionObserver(
             ([entry]) => {
@@ -345,6 +354,23 @@ const AppWrapper = observer(() => {
                             <div
                                 label={
                                     <>
+                                        <LabelPairedGrid2CaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--tab-icon-deltaprime-bots)'
+                                        />
+                                        <Localize i18n_default_text='Deltaprime Bots' />
+                                    </>
+                                }
+                                id='id-deltaprime-bots'
+                            >
+                                <Suspense fallback={<ChunkLoader message={localize('Please wait, loading bots...')} />}>
+                                    <DeltaprimeBots />
+                                </Suspense>
+                            </div>
+                            <div
+                                label={
+                                    <>
                                         <LabelPairedChartLineCaptionRegularIcon
                                             height='24px'
                                             width='24px'
@@ -526,6 +552,46 @@ const AppWrapper = observer(() => {
                                     fallback={<ChunkLoader message={localize('Please wait, loading tools...')} />}
                                 >
                                     <Tools />
+                                </Suspense>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedLocationCrosshairsCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--tab-icon-agent)'
+                                        />
+                                        <Localize i18n_default_text='Agent' />
+                                    </>
+                                }
+                                id='id-agent'
+                            >
+                                <Suspense
+                                    fallback={<ChunkLoader message={localize('Please wait, loading agent...')} />}
+                                >
+                                    <Agent />
+                                </Suspense>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedUsersCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--tab-icon-copy-trading)'
+                                        />
+                                        <Localize i18n_default_text='Copy Trading' />
+                                    </>
+                                }
+                                id='id-copy-trading'
+                            >
+                                <Suspense
+                                    fallback={
+                                        <ChunkLoader message={localize('Please wait, loading copy trading...')} />
+                                    }
+                                >
+                                    <CopyTrading />
                                 </Suspense>
                             </div>
                         </Tabs>

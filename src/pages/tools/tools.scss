@@ -13,7 +13,6 @@
     height: calc(100vh - 17.2rem);
     display: flex;
     flex-direction: column;
-    background: var(--general-main-1);
     overflow: hidden;
 
     // Capped, centered column on desktop (see _mixins.scss's dbot-centered-content) — this is
@@ -22,7 +21,14 @@
     // Run/Stop button pinned top-right) on any screen wider than ~1280px, since the button
     // sits well inside the resulting side margin.
     @include desktop-screen {
-        @include dbot-centered-content;
+        // Full-bleed: cards span the entire content width with no side margin — the widest they
+        // can physically be. There is no width cap beyond this; anything wider would overflow the
+        // viewport and create a horizontal scrollbar. The pinned top-right Run/Stop button
+        // overlaps the top card's right corner as a result.
+        box-sizing: border-box;
+        width: 100%;
+        max-width: none;
+        margin-inline: 0;
     }
 
     @include mobile-or-tablet-screen {
@@ -39,6 +45,12 @@
         flex-shrink: 0;
         padding: 1.6rem;
         padding-bottom: 0;
+        box-sizing: border-box;
+
+        // Fill the centered page column (see the .tools desktop block above) so the tab row lines
+        // up with the cards.
+        max-width: none;
+        margin-inline: auto;
     }
 
     &__tab {
@@ -83,6 +95,11 @@
         display: flex;
         flex-direction: column;
         gap: 1.2rem;
+        box-sizing: border-box;
+
+        // Fill the centered page column — see the .tools desktop block above.
+        max-width: none;
+        margin-inline: auto;
     }
 }
 
@@ -95,9 +112,19 @@
 
 .tools-risk-panel,
 .tools-report-panel {
-    display: flex;
-    flex-direction: column;
+    // Two-column card grid on desktop/fullscreen so each card takes about half the screen and
+    // the cards fill the wide space, instead of one full-width column that leaves a big screen
+    // looking sparse ("small view in fullscreen"). Collapses to a single column when the tab is
+    // too narrow for two. align-items: start keeps each card its own natural height rather than
+    // stretching short cards to match a tall neighbour in the same row.
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.2rem;
+    align-items: start;
+
+    @include mobile-or-tablet-screen {
+        grid-template-columns: 1fr;
+    }
 }
 
 // Faithful port of .card's color variants (reference: green/orange/teal/red/purple accent
@@ -389,6 +416,13 @@
     flex-direction: column;
     gap: 1rem;
     max-width: 40rem;
+
+    // Open the calculator up toward half the screen on desktop/fullscreen so it isn't a small
+    // 40rem box next to all the empty space. Capped so the 3-column keypad's keys stay a sane
+    // size rather than becoming huge.
+    @include desktop-screen {
+        max-width: 60rem;
+    }
 
     &__intro {
         text-align: center;
