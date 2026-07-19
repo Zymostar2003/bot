@@ -20,13 +20,14 @@ import { useStore } from '@/hooks/useStore';
 import useTMB from '@/hooks/useTMB';
 import { handleOidcAuthFailure } from '@/utils/auth-utils';
 import {
+    LabelPairedAndroidCaptionIcon,
+    LabelPairedChartCandlestickCaptionRegularIcon,
     LabelPairedChartLineCaptionRegularIcon,
     LabelPairedChartTradingviewCaptionRegularIcon,
     LabelPairedGaugeMaxCaptionRegularIcon,
     LabelPairedGearCaptionRegularIcon,
     LabelPairedGrid2CaptionRegularIcon,
     LabelPairedLightbulbCaptionRegularIcon,
-    LabelPairedLocationCrosshairsCaptionRegularIcon,
     LabelPairedObjectsColumnCaptionRegularIcon,
     LabelPairedPuzzlePieceTwoCaptionBoldIcon,
     LabelPairedSearchCaptionRegularIcon,
@@ -56,6 +57,7 @@ const DigitPsychology = lazy(() => import('../digit-psychology'));
 const Tools = lazy(() => import('../tools'));
 const Agent = lazy(() => import('../agent'));
 const CopyTrading = lazy(() => import('../copy-trading'));
+const DTrader = lazy(() => import('../dtrader'));
 
 const AppWrapper = observer(() => {
     const { connectionStatus } = useApiBase();
@@ -102,6 +104,7 @@ const AppWrapper = observer(() => {
         'tools',
         'agent',
         'copy_trading',
+        'dtrader',
     ];
     const { isDesktop } = useDevice();
     const location = useLocation();
@@ -121,7 +124,7 @@ const AppWrapper = observer(() => {
 
     React.useEffect(() => {
         const el_dashboard = document.getElementById('id-dbot-dashboard');
-        const el_last_tab = document.getElementById('id-copy-trading');
+        const el_last_tab = document.getElementById('id-dtrader');
 
         const observer_dashboard = new window.IntersectionObserver(
             ([entry]) => {
@@ -557,7 +560,7 @@ const AppWrapper = observer(() => {
                             <div
                                 label={
                                     <>
-                                        <LabelPairedLocationCrosshairsCaptionRegularIcon
+                                        <LabelPairedAndroidCaptionIcon
                                             height='24px'
                                             width='24px'
                                             fill='var(--tab-icon-agent)'
@@ -592,6 +595,25 @@ const AppWrapper = observer(() => {
                                     }
                                 >
                                     <CopyTrading />
+                                </Suspense>
+                            </div>
+                            <div
+                                label={
+                                    <>
+                                        <LabelPairedChartCandlestickCaptionRegularIcon
+                                            height='24px'
+                                            width='24px'
+                                            fill='var(--tab-icon-dtrader)'
+                                        />
+                                        <Localize i18n_default_text='DTrader' />
+                                    </>
+                                }
+                                id='id-dtrader'
+                            >
+                                <Suspense
+                                    fallback={<ChunkLoader message={localize('Please wait, loading DTrader...')} />}
+                                >
+                                    <DTrader />
                                 </Suspense>
                             </div>
                         </Tabs>

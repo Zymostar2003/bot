@@ -23,12 +23,12 @@
 
     &--left {
         left: 0;
-        background: linear-gradient(-88.07deg, transparent 1.63%, #0c3a44 50.02%);
+        background: linear-gradient(-88.07deg, transparent 1.63%, #059669 50.02%);
     }
 
     &--right {
         right: 0;
-        background: linear-gradient(88.07deg, transparent 1.63%, #0c3a44 50.02%);
+        background: linear-gradient(88.07deg, transparent 1.63%, #059669 50.02%);
     }
 }
 
@@ -99,8 +99,9 @@
             --tab-icon-trade-setup: #ff5c5c;
             --tab-icon-digit-psychology: #ff6fb5;
             --tab-icon-tools: #8a97a8;
-            --tab-icon-agent: #38bdf8;
+            --tab-icon-agent: #3ddc84;
             --tab-icon-copy-trading: #a3e635;
+            --tab-icon-dtrader: #14b8a6;
 
             // LegacyGuide1pxIcon (Tutorials) is colored via .icon-general-fill-g-path's
             // `g path { fill: var(--text-general) }` rule rather than its own fill prop —
@@ -110,22 +111,22 @@
             }
 
             &__active-line {
-                background-color: #155c68;
+                background-color: #6ee7b7;
                 transition: none;
             }
 
             &__active {
-                background: #155c68;
+                background: #065f46;
                 color: #fff;
             }
 
             &__list {
-                // A trading-terminal nav bar stays a fixed dark, professional
-                // petrol/teal-blue regardless of the app's own light/dark theme toggle —
-                // so the active-tab highlight and all tab label text below are pinned to
-                // this same palette instead of following --general-main-1/--text-prominent.
-                background: linear-gradient(180deg, #0f4c5c 0%, #082a32 100%);
-                border-bottom: 1px solid #1c5866;
+                // A trading-terminal nav bar stays a fixed dark, professional green regardless of
+                // the app's own light/dark theme toggle — so the active-tab highlight and all tab
+                // label text below are pinned to this same palette instead of following
+                // --general-main-1/--text-prominent.
+                background: linear-gradient(180deg, #059669 0%, #047857 100%);
+                border-bottom: 1px solid #10b981;
                 justify-content: start;
                 box-sizing: border-box;
 

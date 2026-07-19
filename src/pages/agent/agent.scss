@@ -5,40 +5,30 @@
  * @define agent
  */
 
-// Same viewport-anchoring technique as every other dashboard-tab page this session (see
-// signal-engine.scss's `.signal-engine` block comment for the full ancestor-chain rationale).
-// Structural note: centering and scrolling are deliberately split across two different
-// elements (this outer shell + __body below), matching Digit Psychology/Scanner exactly —
-// combining "is the centered/capped box" and "is the scrolling box" on the same element (the
-// original version of this file) is a real structural difference from every other centered
-// tab, not just a cosmetic one: a scrolling element's own visible scrollbar sits at *its own*
-// right edge, and centering + capping + scrolling all landing on one element is more fragile
-// than the outer-shell/inner-scroll split every other page already uses.
+// Live digit-flow graph (see agent.tsx). Canvas-style tab — full width, transparent surface like
+// the other panel tabs — with a fixed chart card (two stacked bands: Even/Odd over Over/Under)
+// that fills the remaining space.
 .agent {
     box-sizing: border-box;
     width: 100%;
-    padding: 1.6rem;
     height: calc(100vh - 17.2rem);
+    padding: 1.6rem;
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
-    overflow: hidden;
 
-    // Capped, centered column on desktop (see _mixins.scss's dbot-centered-content) — this is
-    // a form/panel-style tab, not a canvas workspace, same category as Scanner/Smart Analysis.
-    @include desktop-screen {
-        @include dbot-centered-content;
-    }
+    // Scroll the whole tab when the viewport is too short to hold the graph at its minimum height
+    // (otherwise the flex:1 graph collapses and the moving lines get squeezed).
+    overflow-y: auto;
 
     @include mobile-or-tablet-screen {
         height: calc(100vh - 11rem);
     }
 
-    // Capped and centered the same as every card below (bar chart, stats row, action box,
-    // Send Agent results) — previously this spanned the full width of the outer 1100px shell
-    // while the cards were capped at 600px, so the header's select/buttons sat out near the
-    // shell's edges instead of lining up with the narrower column the rest of the page reads
-    // as, and on some widths the trailing button was pushed past the visible area entirely.
+    // Cap the content width so cards never span the whole screen in fullscreen / on wide monitors;
+    // centre them instead. Header and body share the same cap so controls align with the cards.
+    --agent-max-width: 100rem;
+
     &__header {
         display: flex;
         align-items: center;
@@ -46,9 +36,8 @@
         flex-wrap: wrap;
         flex-shrink: 0;
         width: 100%;
-        max-width: 60rem;
+        max-width: var(--agent-max-width);
         margin-inline: auto;
-        box-sizing: border-box;
     }
 
     &__title {
@@ -58,297 +47,624 @@
         margin-right: auto;
     }
 
-    &__asset-select {
-        width: 16rem;
+    // Compact "card" selectors so the header stays tidy on wide/fullscreen instead of the controls
+    // spreading out. Fixed widths + no grow, each with a bordered card surface.
+    &__select {
+        flex: 0 0 auto;
+        width: 13rem;
+
+        &--small {
+            width: 8rem;
+        }
 
         .dc-select-native__container {
-            border-color: var(--border-normal);
+            min-height: 3.6rem;
+            border: 1px solid var(--border-normal);
             border-radius: 0.8rem;
-        }
-
-        .dc-select-native__wrapper,
-        .dc-select-native__display,
-        .dc-select-native__picker {
-            height: 3.6rem;
-        }
-
-        .dc-select-native__display-text {
-            font-size: var(--text-size-xs);
-            line-height: 3.6rem;
+            background: var(--general-section-1);
+            box-shadow: 0 0.1rem 0.3rem rgb(0 0 0 / 8%);
         }
     }
 
-    &__refresh,
+    // "Send Agent" — kicks off the all-asset scan.
     &__send {
-        background: var(--button-primary-default);
-        color: var(--text-colored-background);
+        flex: 0 0 auto;
+        height: 3.6rem;
+        padding: 0 1.4rem;
         border: none;
         border-radius: 0.8rem;
-        padding: 0.9rem 1.4rem;
+        background: var(--tab-icon-agent, #3ddc84);
+        color: #04140b;
         font-size: var(--text-size-xs);
         font-weight: bold;
         cursor: pointer;
+        transition: filter 0.15s ease;
+
+        &:hover {
+            filter: brightness(1.05);
+        }
 
         &:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
+            opacity: 0.7;
+            cursor: progress;
         }
     }
 
-    // Send Agent gets its own accent so it reads as the "bigger" action next to Refresh Data.
-    &__send {
-        background: var(--status-info);
-    }
-
-    // The actual scroll region (matching Digit Psychology's own __main) — this is where
-    // padding-bottom breathing room belongs, not on the outer centered/capped shell above.
     &__body {
-        flex: 1;
-        min-height: 0;
+        // Grow to fill on tall screens, but never shrink below the content's natural height so the
+        // graph keeps its min-height and the tab scrolls instead of squeezing.
+        flex: 1 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 1.2rem;
-        overflow-y: auto;
-        padding-bottom: 4.8rem;
-
-        @include mobile-or-tablet-screen {
-            padding-bottom: 7.6rem;
-        }
-    }
-
-    &__loading {
-        padding: 2.4rem;
-        text-align: center;
-        color: var(--text-less-prominent);
-        font-size: var(--text-size-xs);
-    }
-
-    &__stats-row {
-        display: grid;
+        gap: 1rem;
         width: 100%;
-        max-width: 60rem; // 600px — same cap as Smart Analysis's digit-panel/last-50, keeps
-        margin-inline: auto; // this from spreading across the full page width on wide screens
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.8rem;
-    }
-
-    &__stat {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.2rem;
-        background: var(--general-section-1);
-        border: 1px solid var(--border-normal);
-        border-radius: 1rem;
-        padding: 0.8rem 0.4rem;
-        min-width: 0;
-    }
-
-    &__stat-label {
-        font-size: var(--text-size-xxxs);
-        text-transform: uppercase;
-        letter-spacing: 0.1rem;
-        color: var(--text-less-prominent);
-    }
-
-    &__stat-value {
-        font-size: var(--text-size-s);
-        font-weight: bold;
-        color: var(--text-general);
-    }
-
-    &__context {
-        width: 100%;
-        max-width: 60rem;
+        max-width: var(--agent-max-width);
         margin-inline: auto;
-        box-sizing: border-box;
-        text-align: center;
+    }
+
+    &__hint {
         font-size: var(--text-size-xxs);
         color: var(--text-less-prominent);
-    }
-
-    &__footer {
+        line-height: 1.6;
         flex-shrink: 0;
-        font-size: var(--text-size-xxxs);
-        color: var(--text-less-prominent);
-        text-align: right;
     }
 }
 
-.agent-bar-chart {
-    display: grid;
-    width: 100%;
-    max-width: 60rem; // 600px — same cap as Smart Analysis's digit-panel/last-50, keeps this
-    margin-inline: auto; // from spreading across the full page width on wide screens
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-    gap: 0.4rem;
-    align-items: end;
-    background: var(--general-section-1);
+// Shown while ticks are still loading (replaces the old band graph's loading state).
+.agent-loading {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 12rem;
     border: 1px solid var(--border-normal);
-    border-radius: 1rem;
-    padding: 1.2rem 0.8rem 0.8rem;
-    flex-shrink: 0;
-
-    &__col {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.3rem;
-        min-width: 0;
-    }
-
-    &__track {
-        width: 100%;
-        height: 9rem;
-        display: flex;
-        align-items: flex-end;
-    }
-
-    &__fill {
-        width: 100%;
-        border-radius: 0.3rem 0.3rem 0 0;
-        background: var(--button-primary-default);
-        transition: height 0.3s ease;
-    }
-
-    &__digit {
-        font-size: var(--text-size-xs);
-        font-weight: bold;
-        color: var(--text-general);
-    }
-
-    &__pct {
-        font-size: var(--text-size-xxxs);
-        color: var(--text-less-prominent);
-    }
+    border-radius: 1.2rem;
+    background: var(--general-section-1);
+    color: var(--text-less-prominent);
+    font-size: var(--text-size-xs);
 }
 
-.agent-action-box {
-    width: 100%;
-    max-width: 60rem; // 600px — same cap as Smart Analysis's digit-panel/last-50, keeps this
-    margin-inline: auto; // from spreading across the full page width on wide screens
-    box-sizing: border-box;
-    border-radius: 1rem;
-    padding: 1.2rem;
-    font-size: var(--text-size-s);
-    font-weight: bold;
-    text-align: center;
+// "Send Agent" scan results: a ranked table of the best side to trade per asset, across the three
+// digit-contract families.
+.agent-scan {
     flex-shrink: 0;
-
-    &--go {
-        background: var(--status-warning-transparent);
-        color: var(--status-warning);
-        border: 1.5px solid var(--status-warning);
-    }
-
-    &--wait {
-        background: var(--general-section-1);
-        color: var(--text-less-prominent);
-        border: 1px solid var(--border-normal);
-    }
-}
-
-// Send Agent's multi-asset results list — new capability, no reference equivalent. Rows are
-// clickable: picking one switches the single-asset view (.agent above) to that asset, letting
-// a user drill from "best across everything" into the full breakdown for one of them.
-.agent-send-results {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.8rem;
+    padding: 1.2rem;
+    border: 1px solid var(--tab-icon-agent, #3ddc84);
+    border-radius: 1.2rem;
     background: var(--general-section-1);
-    border: 1px solid var(--border-normal);
-    border-radius: 1rem;
-    padding: 1rem 1.2rem;
-    box-sizing: border-box;
-    flex-shrink: 0;
-    min-width: 0;
 
-    // 60rem (600px) — same cap as Smart Analysis's digit-panel/last-50, keeps this from
-    // spreading across the full page width on wide screens.
-    width: 100%;
-    max-width: 60rem;
-    margin-inline: auto;
-
-    &__header {
+    &__head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 0.4rem;
+        gap: 1rem;
     }
 
     &__title {
         font-size: var(--text-size-xs);
         font-weight: bold;
+        letter-spacing: 0.05rem;
         color: var(--text-prominent);
     }
 
-    &__updated {
-        font-size: var(--text-size-xxxs);
+    &__close {
+        border: none;
+        background: transparent;
         color: var(--text-less-prominent);
-    }
-
-    &__list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        max-height: 24rem;
-        overflow-y: auto;
-        min-width: 0;
-    }
-
-    // Buttons, not divs — a native <button> carries its own UA-default sizing behavior on
-    // top of the usual flex-item min-width: auto quirk (see .digit-psychology-digit-heat-grid
-    // etc.'s own minmax(0, 1fr)/min-width: 0 fixes for the same underlying issue), so it needs
-    // the same explicit min-width: 0 override, plus box-sizing so the 100% width actually
-    // includes its own padding/border instead of adding to it.
-    &__row {
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-        background: var(--general-section-2);
-        border: 1px solid var(--border-normal);
-        border-radius: 0.8rem;
-        padding: 0.7rem 1rem;
+        font-size: var(--text-size-l);
+        line-height: 1;
         cursor: pointer;
-        text-align: left;
-        box-sizing: border-box;
-        width: 100%;
-        min-width: 0;
+        padding: 0 0.4rem;
 
         &:hover {
-            border-color: var(--button-primary-default);
+            color: var(--text-prominent);
+        }
+    }
+
+    &__table {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__row {
+        display: grid;
+        grid-template-columns: 1.4fr 1.1fr 1.2fr 1.4fr;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.6rem 0.4rem;
+        border-top: 1px solid var(--border-normal);
+
+        &--head {
+            border-top: none;
+            font-size: var(--text-size-xxs);
+            font-weight: bold;
+            color: var(--text-less-prominent);
+            text-transform: uppercase;
+            letter-spacing: 0.04rem;
         }
     }
 
     &__asset {
-        flex: 1;
-        min-width: 0;
-        font-size: var(--text-size-xs);
-        font-weight: bold;
-        color: var(--text-general);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    &__chip {
-        flex-shrink: 0;
         font-size: var(--text-size-xxs);
         font-weight: bold;
-        color: var(--status-info);
-        background: var(--transparent-info);
-        border-radius: 0.6rem;
-        padding: 0.2rem 0.7rem;
-        white-space: nowrap;
+        color: var(--text-general);
     }
 
-    &__confidence {
-        flex-shrink: 0;
+    &__cell {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+
+        &--best:before {
+            content: '★ ';
+            color: var(--tab-icon-agent, #3ddc84);
+        }
+
+        &--empty {
+            grid-column: span 3;
+            color: var(--text-less-prominent);
+        }
+    }
+
+    &__note {
+        font-size: var(--text-size-xxxs);
+        color: var(--text-less-prominent);
+        line-height: 1.5;
+    }
+}
+
+// Digit-trail panel: a line whose height is the digit (0 bottom … 9 top). The digit number rides
+// along the line at each tick's point (not a fixed axis), coloured green/amber by even/odd. Scrolls
+// horizontally through history; kept short so it never dominates the tab.
+.agent-digits {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    min-height: 30rem;
+    max-height: 36rem;
+    box-sizing: border-box;
+    background: var(--general-section-1);
+    border: 1px solid var(--border-normal);
+    border-radius: 1.2rem;
+    padding: 1rem 1.2rem;
+
+    // Graph-paper mesh behind the trail: fine 1rem squares + stronger 5rem
+    // major lines. Covers the drawing area (inset by padding); content sits above via z-index.
+    &:before {
+        content: '';
+        position: absolute;
+        top: 1rem;
+        bottom: 1rem;
+        left: 1.2rem;
+        right: 1.2rem;
+        z-index: 0;
+        pointer-events: none;
+        border-radius: 0.4rem;
+
+        --grid-major: color-mix(in srgb, var(--border-normal) 85%, transparent);
+        --grid-minor: color-mix(in srgb, var(--border-normal) 30%, transparent);
+
+        background-image:
+            linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+            linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+        background-size:
+            5rem 5rem,
+            5rem 5rem,
+            1rem 1rem,
+            1rem 1rem;
+    }
+
+    // Horizontal scroll track: each tick gets a fixed slot so digits spread out; scroll back/forward
+    // through history (auto-follows the newest tick unless you've scrolled away — see agent.tsx).
+    &__scroll {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+
+        &::-webkit-scrollbar {
+            height: 0.6rem;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            border-radius: 0.6rem;
+            background: color-mix(in srgb, var(--text-less-prominent) 40%, transparent);
+        }
+    }
+
+    // Holds the SVG line + the along-the-line digit labels; its width (set inline in px) is what the
+    // track scrolls. Labels are positioned in % of this box so they track the stretched SVG.
+    &__inner {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+        min-width: 100%; // fill the track when there are too few ticks to overflow
+    }
+
+    &__svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
+
+    // Trail segments, coloured per-step by even/odd (stroke set inline in agent.tsx).
+    &__seg {
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        vector-effect: non-scaling-stroke;
+    }
+
+    // "digit (%)" label — rides ABOVE the line at each point (offset up so it never touches the
+    // walking line). Colour set inline by even/odd.
+    &__label {
+        position: absolute;
+        transform: translate(-50%, calc(-50% - 1rem));
+        display: flex;
+        align-items: baseline;
+        gap: 0.15rem;
+        white-space: nowrap;
+        line-height: 1;
+        pointer-events: none;
+
+        &--last {
+            padding: 0.1rem 0.35rem;
+            border-radius: 0.4rem;
+            background: var(--general-section-1);
+            box-shadow: 0 0 0 1px currentcolor;
+        }
+    }
+
+    &__label-d {
+        font-size: 1.1rem;
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__label-pct {
+        font-size: 0.9rem;
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.75;
+    }
+
+    // Horizontal Δ scale along the bottom: strength change from the previous digit to this one.
+    &__delta {
+        position: absolute;
+        bottom: 0.4rem;
+        transform: translateX(-50%);
+        font-size: 1.8rem;
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        pointer-events: none;
+
+        &--up {
+            color: #22c55e;
+        }
+
+        &--down {
+            color: #ef4444;
+        }
+    }
+
+    &__caption {
+        position: absolute;
+        top: -0.9rem;
+        left: 1.2rem;
+        z-index: 2;
+        padding: 0 0.4rem;
+        background: var(--general-section-1);
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        letter-spacing: 0.08rem;
+        color: var(--text-less-prominent);
+        pointer-events: none;
+    }
+}
+
+// Last-50 analyzer: three split-bar cards (Even/Odd, Over/Under, Matches/Differs) summarising how
+// the recent digits moved. Each bar shows the a-vs-b dominance; the row below gives counts + %, and
+// the streak line the current run.
+.agent-analyzer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    flex-shrink: 0;
+    padding: 1rem 1.2rem;
+    border: 1px solid var(--border-normal);
+    border-radius: 1.2rem;
+    background: var(--general-section-1);
+
+    &__title {
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        letter-spacing: 0.08rem;
+        color: var(--text-less-prominent);
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.2rem;
+
+        @include mobile-or-tablet-screen {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    &__card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    // Headline: the percentage-point difference (bias) between the two sides.
+    &__diff {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+
+    &__diff-val {
+        font-size: var(--text-size-l);
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    &__diff-lead {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.04rem;
+    }
+
+    &__bar {
+        display: flex;
+        height: 1rem;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--text-less-prominent) 20%, transparent);
+    }
+
+    &__bar-seg {
+        height: 100%;
+        transition: width 0.4s ease;
+
+        &:first-child {
+            border-radius: 0.5rem 0 0 0.5rem;
+        }
+
+        &:last-child {
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+    }
+
+    &__row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.6rem;
+    }
+
+    &__side {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+
+        &--b {
+            text-align: right;
+        }
+    }
+
+    &__streak {
+        font-size: var(--text-size-xxs);
+        color: var(--text-less-prominent);
+        font-variant-numeric: tabular-nums;
+
+        b {
+            color: var(--text-general);
+        }
+    }
+}
+
+// Cursor (▼, above) + prediction arrows (▲, below) share the heatmap's 10-column geometry so a
+// marker for digit i lands dead-centre over cell i. --gap MUST match .agent-heatmap's gap.
+.agent-heat-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+
+.agent-cursor,
+.agent-arrows {
+    position: relative;
+    height: 1.5rem;
+
+    // On narrow screens the heatmap wraps to two rows, so these single-row glide tracks can't
+    // align with the 2nd row — the per-cell markers (.agent-heatmap__cell-cursor/-arrow) take over.
+    @include mobile-or-tablet-screen {
+        display: none;
+    }
+}
+
+.agent-cursor__marker,
+.agent-arrows__marker {
+    --gap: 0.4rem;
+
+    position: absolute;
+    left: calc(((100% - 9 * var(--gap)) / 10) * (var(--i) + 0.5) + var(--gap) * var(--i));
+    transform: translateX(-50%);
+    font-size: var(--text-size-s);
+    line-height: 1.5rem;
+    transition: left 0.3s ease;
+}
+
+.agent-cursor__marker {
+    top: 0;
+    color: var(--text-prominent);
+    text-shadow: 0 0 4px rgb(0 0 0 / 35%);
+}
+
+.agent-arrows__marker {
+    bottom: 0;
+    color: #fbbf24;
+}
+
+.agent-heatmap {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 0.4rem;
+    flex-shrink: 0;
+
+    @include mobile-or-tablet-screen {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    &__cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.15rem;
+        min-width: 0;
+        padding: 0.5rem 0.2rem;
+        border-radius: 0.6rem;
+        color: #fff;
+    }
+
+    &__digit {
         font-size: var(--text-size-xs);
         font-weight: bold;
-        color: var(--text-general);
-        min-width: 3.6rem;
-        text-align: right;
+        line-height: 1;
+    }
+
+    &__pct {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__shift {
+        font-size: var(--text-size-xxxs);
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        padding: 0.05rem 0.35rem;
+        border-radius: 0.6rem;
+        background: rgb(0 0 0 / 28%);
+
+        &--up {
+            color: #bbf7d0;
+        }
+
+        &--down {
+            color: #fecaca;
+        }
+    }
+
+    // Per-cell cursor (▼) / prediction arrow (▲) — used on narrow screens where the heatmap wraps
+    // to two rows and the single-row glide tracks can't line up with the 2nd row. Hidden on desktop
+    // (the .agent-cursor / .agent-arrows glide tracks handle that there).
+    &__cell-cursor,
+    &__cell-arrow {
+        display: none;
+        opacity: 0;
+        font-size: var(--text-size-xs);
+        line-height: 1.1;
+
+        @include mobile-or-tablet-screen {
+            display: block;
+        }
+    }
+
+    &__cell-cursor--on {
+        opacity: 1;
+        color: #fff;
+        text-shadow: 0 0 4px rgb(0 0 0 / 40%);
+    }
+
+    &__cell-arrow--on {
+        opacity: 1;
+        color: #fbbf24;
+    }
+}
+
+.agent-legend {
+    display: flex;
+    align-items: center;
+    gap: 1.4rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+
+    // Model confidence meter (see predictNext in agent.tsx): how much edge the blended prediction
+    // has over a blind pick.
+    &__conf {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    &__conf-label {
+        font-size: var(--text-size-xxs);
+        color: var(--text-less-prominent);
+        text-transform: uppercase;
+        letter-spacing: 0.05rem;
+    }
+
+    &__conf-bar {
+        position: relative;
+        width: 6rem;
+        height: 0.5rem;
+        border-radius: 0.4rem;
+        background: color-mix(in srgb, var(--text-less-prominent) 25%, transparent);
+        overflow: hidden;
+    }
+
+    &__conf-fill {
+        display: block;
+        height: 100%;
+        border-radius: 0.4rem;
+        background: var(--tab-icon-agent, #3ddc84);
+        transition: width 0.4s ease;
+    }
+
+    &__conf-value {
+        font-size: var(--text-size-xxs);
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        color: var(--tab-icon-agent, #3ddc84);
+        min-width: 3rem;
+    }
+
+    &__digit {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    &__digit-label {
+        font-size: var(--text-size-xxs);
+        color: var(--text-less-prominent);
+        text-transform: uppercase;
+        letter-spacing: 0.05rem;
+    }
+
+    &__digit-value {
+        font-size: var(--text-size-xl);
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        min-width: 2rem;
+        text-align: center;
     }
 }
