@@ -2,7 +2,7 @@ import { action, computed, makeObservable, observable, reaction, runInAction } f
 import { toast } from 'react-toastify';
 import { DBOT_TABS } from '@/constants/bot-contents';
 import { api_base } from '@/external/bot-skeleton';
-import TicksService from '@/external/bot-skeleton/services/api/ticks_service';
+import { DerivStream, fetchHistoryBatch } from '@/utils/deriv-websocket';
 import {
     CONTRACT_TYPES,
     CT_LABELS,
@@ -57,7 +57,8 @@ export function extractBarrierDigit(result: TScanResult): number | undefined {
 
 export default class ScannerStore {
     root_store: RootStore;
-    ticks_service: TicksService | null = null;
+    live_stream: DerivStream | null = null;
+    entry_stream: DerivStream | null = null;
 
     // Left over from Scanner's original toolbar-icon/overlay design (superseded — Scanner
     // is now a dashboard tab, mounted/unmounted by Tabs' active-tab switching instead of
@@ -305,30 +306,24 @@ export default class ScannerStore {
         this.progress_text = 'Requesting all assets…';
         this.startPulse();
 
-        if (!this.ticks_service) {
-            this.ticks_service = new TicksService();
-        }
-        const ticks_service = this.ticks_service;
-
         const activeCTs: TContractType[] = FILTER_TAB_CONTRACT_TYPES[this.active_tab] ?? CONTRACT_TYPES;
         const minTicks = this.min_ticks || DEFAULT_MIN_TICKS;
 
-        // Parallel batch-fetch — Promise.allSettled so one bad symbol doesn't kill the scan
-        // (reference fires all requests over one socket in parallel too, see lines
-        // 17010-17023).
-        const settled = await Promise.allSettled(
-            SCAN_ASSETS.map(asset =>
-                ticks_service.request({ symbol: asset.v, granularity: undefined }).then((ticks: TTick[]) => {
+        // Parallel batch-fetch over a dedicated clean socket, exactly matching reference implementation
+        const historyMap = await fetchHistoryBatch(
+            SCAN_ASSETS.map(asset => asset.v),
+            minTicks,
+            {
+                onProgress: (received, total) => {
                     if (token === this.scan_token) {
                         runInAction(() => {
-                            this.received_count++;
-                            this.progress = 10 + (this.received_count / this.total_count) * 80;
-                            this.progress_text = `Received ${this.received_count} / ${this.total_count} assets…`;
+                            this.received_count = received;
+                            this.progress = 10 + (received / total) * 80;
+                            this.progress_text = `Received ${received} / ${total} assets…`;
                         });
                     }
-                    return ticks;
-                })
-            )
+                },
+            }
         );
 
         if (token !== this.scan_token) return; // superseded by a newer scan() or stop()
@@ -338,11 +333,11 @@ export default class ScannerStore {
         const regime_counts: TRegimeCounts = { quiet: 0, normal: 0, volatile: 0, spiking: 0 };
         const next_scores: Record<string, number> = {};
 
-        settled.forEach((outcome, i) => {
-            if (outcome.status !== 'fulfilled') return;
-            const asset = SCAN_ASSETS[i];
+        SCAN_ASSETS.forEach(asset => {
+            const rawTicks = historyMap.get(asset.v);
+            if (!rawTicks || rawTicks.length < minTicks) return;
             const pip_size = (api_base.pip_sizes as Record<string, number>)?.[asset.v] ?? 2;
-            const hist: TFullHistoryTick[] = toFullHistoryTicks(outcome.value, pip_size);
+            const hist: TFullHistoryTick[] = toFullHistoryTicks(rawTicks, pip_size);
             if (hist.length < minTicks) return;
 
             regime_counts[dsRegime(hist)]++;
@@ -421,47 +416,24 @@ export default class ScannerStore {
     // ── Live digit monitor (new capability, no reference equivalent) ──
 
     startLiveDigitMonitor = (asset: string) => {
-        if (this.live_asset === asset) return; // already tracking this asset, avoid WS churn
+        if (this.live_asset === asset) return;
         this.stopLiveDigitMonitor();
-        if (!this.ticks_service) {
-            this.ticks_service = new TicksService();
-        }
         this.live_asset = asset;
-        this.ticks_service
-            .monitor({
-                symbol: asset,
-                granularity: undefined,
-                callback: ticks => {
-                    // Superseded by a newer startLiveDigitMonitor/stopLiveDigitMonitor call —
-                    // TicksService.monitor() delivers its initial history batch as soon as
-                    // it's fetched (see ticks_service.js's monitor() fix), so a slow response
-                    // for an asset we've since moved away from can otherwise land after a
-                    // faster one and silently overwrite it with stale data.
-                    if (this.live_asset !== asset) return;
-                    this.onLiveTicksUpdate(ticks);
-                },
-            })
-            .then(key => {
-                if (this.live_asset === asset) {
-                    runInAction(() => {
-                        this.live_monitor_key = key;
-                    });
-                } else {
-                    // Superseded by a newer startLiveDigitMonitor/stopLiveDigitMonitor call
-                    // while this monitor() call was still resolving — tear the now-orphaned
-                    // subscription back down instead of leaking it.
-                    this.ticks_service?.stopMonitor({ symbol: asset, granularity: undefined, key });
-                }
-            });
+        this.live_stream = new DerivStream({
+            symbol: asset,
+            tag: 'ScannerLive',
+            onTick: (_tick, allTicks) => {
+                if (this.live_asset !== asset) return;
+                this.onLiveTicksUpdate(allTicks);
+            },
+        });
+        this.live_stream.start();
     };
 
     stopLiveDigitMonitor = () => {
-        if (this.ticks_service && this.live_monitor_key && this.live_asset) {
-            this.ticks_service.stopMonitor({
-                symbol: this.live_asset,
-                granularity: undefined,
-                key: this.live_monitor_key,
-            });
+        if (this.live_stream) {
+            this.live_stream.destroy();
+            this.live_stream = null;
         }
         this.live_monitor_key = null;
         this.live_asset = null;
@@ -474,17 +446,9 @@ export default class ScannerStore {
 
     // ── Find Entry Point (new capability — see entry-point.ts's header comment) ──
 
-    // Faithful port of _scStartEntry (reference lines 21498-21645), using TicksService.monitor
-    // instead of a dedicated WebSocket subscription (same substitution as
-    // startLiveDigitMonitor above). Independent of the live digit monitor above — this can
-    // watch any result the user picks, not just the current top result, and needs its own
-    // subscription since they can point at different assets at once.
+    // Faithful port of _scStartEntry (reference lines 21498-21645) using DerivStream
     startEntryWatch = (result: TScanResult) => {
         this.stopEntryWatch();
-        if (!this.ticks_service) {
-            this.ticks_service = new TicksService();
-        }
-        const ticks_service = this.ticks_service;
 
         this.entry_watch = {
             result,
@@ -496,53 +460,34 @@ export default class ScannerStore {
             ticks_seen: 0,
         };
 
-        // TicksService.monitor()'s callback fires once immediately with the full initial
-        // history batch (see ticks_service.js's monitor()), then once per subsequent live
-        // tick with the same rolling array shifted by one. The state machine below only makes
-        // sense applied to genuinely new, sequential ticks — so the first (bulk-history)
-        // callback is used only to seed recent_ticks, not run through it.
         let is_first_batch = true;
-        ticks_service
-            .monitor({
-                symbol: result.asset,
-                granularity: undefined,
-                callback: (ticks: TTick[]) => {
-                    if (this.entry_watch?.result !== result) return; // superseded
-                    const pip_size = (api_base.pip_sizes as Record<string, number>)?.[result.asset] ?? 2;
-                    const hist = toFullHistoryTicks(ticks, pip_size);
-                    if (is_first_batch) {
-                        is_first_batch = false;
-                        runInAction(() => {
-                            if (this.entry_watch?.result === result) {
-                                this.entry_watch.recent_ticks = hist.slice(-12);
-                            }
-                        });
-                        return;
-                    }
-                    this.onEntryWatchTick(hist, result);
-                },
-            })
-            .then(key => {
-                if (this.entry_watch?.result === result) {
+        this.entry_stream = new DerivStream({
+            symbol: result.asset,
+            tag: 'ScannerEntry',
+            onTick: (_tick, allTicks) => {
+                if (this.entry_watch?.result !== result) return;
+                const pip_size = (api_base.pip_sizes as Record<string, number>)?.[result.asset] ?? 2;
+                const hist = toFullHistoryTicks(allTicks, pip_size);
+                if (is_first_batch) {
+                    is_first_batch = false;
                     runInAction(() => {
-                        this._entry_watch_key = key;
+                        if (this.entry_watch?.result === result) {
+                            this.entry_watch.recent_ticks = hist.slice(-12);
+                        }
                     });
-                } else {
-                    // Superseded while monitor() was still resolving — same orphaned-
-                    // subscription cleanup as startLiveDigitMonitor above.
-                    ticks_service.stopMonitor({ symbol: result.asset, granularity: undefined, key });
+                    return;
                 }
-            });
+                this.onEntryWatchTick(hist, result);
+            },
+        });
+        this.entry_stream.start();
     };
 
     // Faithful port of _scStopEntry (reference lines 21647-21663).
     stopEntryWatch = () => {
-        if (this.ticks_service && this._entry_watch_key && this.entry_watch) {
-            this.ticks_service.stopMonitor({
-                symbol: this.entry_watch.result.asset,
-                granularity: undefined,
-                key: this._entry_watch_key,
-            });
+        if (this.entry_stream) {
+            this.entry_stream.destroy();
+            this.entry_stream = null;
         }
         this._entry_watch_key = null;
         this.entry_watch = null;

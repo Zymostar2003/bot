@@ -5,6 +5,7 @@ import {
     CONNECTION_STATUS,
     connectionStatus$,
 } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
+import { DerivStream, fetchHistoryBatch } from '@/utils/deriv-websocket';
 import { SCAN_ASSETS } from '@/utils/scanner/constants';
 import { Localize, localize } from '@deriv-com/translations';
 import './agent.scss';
@@ -278,77 +279,21 @@ const Agent = () => {
     // Subscribes to the symbol's live ticks (conflict-proof, see file header). Re-runs on symbol
     // change and on reconnect.
     React.useEffect(() => {
-        let cancelled = false;
-        let cleanupInner = () => {};
-
-        const start = async () => {
-            cleanupInner();
-            let owned_sub_id: string | null = null;
-            let msg_sub: { unsubscribe: () => void } | null = null;
-            let inner_stopped = false;
-            cleanupInner = () => {
-                inner_stopped = true;
-                msg_sub?.unsubscribe();
-                if (owned_sub_id && api_base?.api) api_base.api.forget(owned_sub_id).catch(() => {});
-            };
-
-            if (!api_base?.api) return;
-            if (!api_base.has_active_symbols) {
-                try {
-                    await api_base.active_symbols_promise;
-                } catch {
-                    /* fall through with pip fallback */
-                }
-            }
-            if (cancelled || inner_stopped) return;
-            const pip = () => (api_base.pip_sizes as Record<string, number>)?.[symbol] ?? 2;
-
-            // 1. History without subscribe — never triggers AlreadySubscribed.
-            try {
-                const res = await api_base.api.send({
-                    ticks_history: symbol,
-                    end: 'latest',
-                    count: FETCH_COUNT,
-                    style: 'ticks',
-                });
-                if (cancelled || inner_stopped) return;
-                const prices: number[] = res?.history?.prices ?? [];
-                setDigits(prices.map(p => lastDigitOf(p, pip())).slice(-MAX_BUFFER));
-            } catch {
-                /* leave digits empty; loading message stays until ticks arrive */
-            }
-
-            // 2. Try to own the live subscription; tolerate AlreadySubscribed (piggyback instead).
-            try {
-                const sub = await api_base.api.send({ ticks: symbol, subscribe: 1 });
-                owned_sub_id = sub?.subscription?.id ?? null;
-            } catch {
-                /* already subscribed elsewhere — ticks still flow on the shared connection */
-            }
-            if (cancelled || inner_stopped) return;
-
-            // 3. Read live ticks off the shared connection.
-            msg_sub = api_base.api.onMessage().subscribe((message: TTickMessage) => {
-                if (cancelled || inner_stopped) return;
-                const tick = message?.data?.tick;
-                if (message?.data?.msg_type === 'tick' && tick?.symbol === symbol && typeof tick.quote === 'number') {
-                    const d = lastDigitOf(tick.quote, pip());
-                    setDigits(prev => [...prev, d].slice(-MAX_BUFFER));
-                }
-            });
-        };
-
         setDigits([]);
-        start();
-
-        const conn = connectionStatus$.subscribe((status: string) => {
-            if (status === CONNECTION_STATUS.OPENED && api_base.api) start();
+        const pipOf = (s: string) => (api_base.pip_sizes as Record<string, number>)?.[s] ?? 2;
+        const stream = new DerivStream({
+            symbol,
+            tag: 'Agent',
+            count: FETCH_COUNT,
+            onTick: (_tick, allTicks, pips) => {
+                const pip = pips || pipOf(symbol);
+                setDigits(allTicks.map(t => lastDigitOf(t.quote, pip)).slice(-MAX_BUFFER));
+            },
         });
+        stream.start();
 
         return () => {
-            cancelled = true;
-            cleanupInner();
-            conn.unsubscribe();
+            stream.destroy();
         };
     }, [symbol]);
 
@@ -364,38 +309,30 @@ const Agent = () => {
     const analyzer = React.useMemo(() => analyzeLast(digits, ANALYZE_N, barrier), [digits, barrier]);
 
     // "Send Agent" — scan every synthetic asset's last ANALYZE_N digits and rank the best side to
-    // trade per contract family (see recommendTrade). History is fetched WITHOUT subscribing so it
-    // never collides with live streams (same rationale as the file header).
+    // trade per contract family (see recommendTrade). Uses parallel batch history fetcher.
     const runAgentScan = React.useCallback(async () => {
-        if (scanning || !api_base?.api) return;
+        if (scanning) return;
         setScanning(true);
         setScanProgress(0);
         setScanResults(null);
         try {
-            if (!api_base.has_active_symbols) {
-                try {
-                    await api_base.active_symbols_promise;
-                } catch {
-                    /* fall through with pip fallback */
+            const historyMap = await fetchHistoryBatch(
+                SCAN_ASSETS.map(a => a.v),
+                SCAN_WINDOW + 20,
+                {
+                    onProgress: (received) => {
+                        setScanProgress(received);
+                    },
                 }
-            }
+            );
+
             const pipOf = (s: string) => (api_base.pip_sizes as Record<string, number>)?.[s] ?? 2;
             const out: { asset: (typeof SCAN_ASSETS)[number]; rec: TRec | null }[] = [];
             for (const asset of SCAN_ASSETS) {
-                try {
-                    const res = await api_base.api.send({
-                        ticks_history: asset.v,
-                        end: 'latest',
-                        count: SCAN_WINDOW + 20,
-                        style: 'ticks',
-                    });
-                    const prices: number[] = res?.history?.prices ?? [];
-                    const ds = prices.map(p => lastDigitOf(p, pipOf(asset.v))).slice(-SCAN_WINDOW);
-                    out.push({ asset, rec: recommendTrade(ds) });
-                } catch {
-                    out.push({ asset, rec: null });
-                }
-                setScanProgress(out.length);
+                const ticks = historyMap.get(asset.v) ?? [];
+                const pip = pipOf(asset.v);
+                const ds = ticks.map(t => lastDigitOf(t.quote, pip)).slice(-SCAN_WINDOW);
+                out.push({ asset, rec: ds.length >= 10 ? recommendTrade(ds) : null });
             }
             out.sort((a, b) => (b.rec?.best ?? -Infinity) - (a.rec?.best ?? -Infinity));
             setScanResults(out);

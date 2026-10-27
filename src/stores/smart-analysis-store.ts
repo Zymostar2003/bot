@@ -4,7 +4,7 @@ import {
     CONNECTION_STATUS,
     connectionStatus$,
 } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
-import TicksService from '@/external/bot-skeleton/services/api/ticks_service';
+import { DerivStream } from '@/utils/deriv-websocket';
 import { toFullHistoryTicks } from '@/utils/signal-engine/adapters';
 import { createHysteresisState, dPcts, proSignal } from '@/utils/signal-engine/pro-signal';
 import { TFullHistoryTick, THysteresisState, TProSignalResult, TTick } from '@/utils/signal-engine/types';
@@ -33,10 +33,10 @@ const DEFAULT_VIEW: TSaView = 'digits';
 
 export default class SmartAnalysisStore {
     root_store: RootStore;
-    ticks_service: TicksService | null = null;
-    tick_monitor_key: string | null = null;
+    stream: DerivStream | null = null;
     connection_subscription: { unsubscribe: () => void } | null = null;
     has_set_initial_symbol = false;
+    _stream_pip_size = 2;
 
     // Algorithmic memory that proSignal mutates — kept as a plain (non-observable) field,
     // matching signal-engine-store's _hysteresis_state convention. Its effect surfaces via
@@ -88,6 +88,7 @@ export default class SmartAnalysisStore {
             setActiveBarrier: action.bound,
             resetActiveBarrier: action.bound,
             setAvailableSymbols: action.bound,
+            onTick: action,
             onTicksUpdate: action,
             setSubscribed: action,
             setProSignal: action,
@@ -95,19 +96,10 @@ export default class SmartAnalysisStore {
 
         this.root_store = root_store;
 
-        // Same api_base.init()/RootStore-construction race as SignalEngineStore — TicksService
-        // must not be created until the connection is confirmed OPENED. Also calls
-        // startMonitoring() directly here (matching SignalEngineStore's own subscription
-        // exactly) rather than relying solely on the "auto-select first symbol" reaction
-        // below — that reaction is guarded by has_set_initial_symbol to only ever fire ONCE
-        // per app lifetime, so on a reconnect (a dropped connection reopening, not just the
-        // very first connect) it would never fire again and monitoring would never resume,
-        // permanently freezing this page on stale data. startMonitoring() itself no-ops
-        // harmlessly if this.symbol is still empty (the very first connect, before the
-        // reaction has picked an initial symbol yet), so this is safe to call unconditionally
-        // on every OPENED event.
+        this.loadAvailableSymbols();
+
         this.connection_subscription = connectionStatus$.subscribe(status => {
-            if (status === CONNECTION_STATUS.OPENED && api_base.api) {
+            if (status === CONNECTION_STATUS.OPENED) {
                 this.loadAvailableSymbols();
                 this.startMonitoring();
             }
@@ -144,7 +136,7 @@ export default class SmartAnalysisStore {
     // ── Derived data (pure calc — safe as MobX computed) ──
 
     get pip_size(): number {
-        return (api_base.pip_sizes as Record<string, number>)?.[this.symbol] ?? 2;
+        return (api_base.pip_sizes as Record<string, number>)?.[this.symbol] ?? this._stream_pip_size ?? 2;
     }
 
     get full_history(): TFullHistoryTick[] {
@@ -191,78 +183,80 @@ export default class SmartAnalysisStore {
 
     // ── WebSocket wiring ──
 
-    // Faithful port of buildMarketList/saConnect's symbol-source (reference lines
-    // 11040/11071-11074), scoped to synthetic indices only. Reuses the app's existing
-    // active_symbols fetch (api_base.active_symbols / active_symbols_promise) rather than
-    // opening the reference's separate `active_symbols:'brief'` socket call.
     loadAvailableSymbols = async () => {
-        if (!api_base.has_active_symbols) {
-            await api_base.active_symbols_promise;
+        if (api_base.has_active_symbols && (api_base.active_symbols as any[])?.length) {
+            const symbols = (api_base.active_symbols ?? []) as ActiveSymbols;
+            this.setAvailableSymbols(symbols.filter(s => s.market === 'synthetic_index'));
+            return;
         }
-        const symbols = (api_base.active_symbols ?? []) as ActiveSymbols;
-        this.setAvailableSymbols(symbols.filter(s => s.market === 'synthetic_index'));
+
+        if (!this.stream) {
+            this.stream = new DerivStream({ tag: 'SmartAnalysis' });
+        }
+        this.stream.requestActiveSymbols(symbols => {
+            const synth = (symbols || []).filter((s: any) => s.market === 'synthetic_index');
+            this.setAvailableSymbols(synth as ActiveSymbols);
+        });
     };
 
     startMonitoring = () => {
         if (!this.symbol) return;
-        if (!this.ticks_service) {
-            this.ticks_service = new TicksService();
+        if (!this.stream) {
+            this.stream = new DerivStream({ tag: 'SmartAnalysis' });
         }
 
-        // Captured so the callback/`.then()` below can tell whether they're still relevant
-        // once they actually resolve — TicksService.monitor() now delivers its initial
-        // history batch as soon as it's fetched (see ticks_service.js's monitor() fix)
-        // rather than waiting for the next live tick, which means a slow response for a
-        // symbol the user has since switched away from can otherwise land AFTER a faster
-        // response for the new symbol and silently overwrite it with stale data.
         const symbol = this.symbol;
 
-        this.ticks_service
-            .monitor({
-                symbol,
-                granularity: undefined,
-                callback: ticks => {
-                    if (this.symbol !== symbol) return; // superseded by a newer setSymbol call
-                    this.onTicksUpdate(ticks);
-                },
-            })
-            .then(key => {
-                if (this.symbol === symbol) this.tick_monitor_key = key;
-            });
+        this.stream.subscribeTicks(
+            symbol,
+            (tick, pips) => {
+                if (this.symbol !== symbol) return;
+                this.onTick(tick, pips);
+            },
+            (ticks, pips) => {
+                if (this.symbol !== symbol) return;
+                this.onTicksUpdate(ticks, pips);
+            }
+        );
 
         this.setSubscribed(true);
         // eslint-disable-next-line no-console
-        console.log('[SmartAnalysisStore] monitoring started', { symbol: this.symbol });
+        console.log('[SmartAnalysisStore] stream monitoring started', { symbol: this.symbol });
     };
 
-    stopMonitoring = (symbol: string = this.symbol) => {
-        if (!this.ticks_service) return;
-
-        if (this.tick_monitor_key) {
-            this.ticks_service.stopMonitor({ symbol, granularity: undefined, key: this.tick_monitor_key });
-            this.tick_monitor_key = null;
+    stopMonitoring = () => {
+        if (this.stream) {
+            this.stream.unsubscribe('ticks');
         }
         this.setSubscribed(false);
     };
 
-    onTicksUpdate = (ticks: TTick[]) => {
-        this.tick_history = ticks;
+    onTick = (tick: TTick, pips?: number) => {
+        if (pips && pips !== this._stream_pip_size) {
+            this._stream_pip_size = pips;
+        }
+        const last = this.tick_history[this.tick_history.length - 1];
+        if (last && last.epoch >= tick.epoch) return;
+        this.tick_history = [...this.tick_history.slice(-999), tick];
+    };
+
+    onTicksUpdate = (ticks: TTick[], pips?: number) => {
+        if (pips && pips !== this._stream_pip_size) {
+            this._stream_pip_size = pips;
+        }
+        this.tick_history = ticks.slice(-1000);
         // eslint-disable-next-line no-console
-        console.log('[SmartAnalysisStore] tick', this.symbol, ticks.length, ticks[ticks.length - 1]);
+        console.log('[SmartAnalysisStore] tick batch', this.symbol, ticks.length);
     };
 
     setSubscribed = (is_subscribed: boolean) => {
         this.is_subscribed = is_subscribed;
     };
 
-    // One-way: this store never writes back to chart_store or any other store — mirrors
-    // SignalEngineStore.setSymbol's convention exactly.
     setSymbol = (symbol: string) => {
         if (!symbol || symbol === this.symbol) return;
-        const prev_symbol = this.symbol;
-        this.stopMonitoring(prev_symbol);
-        this.tick_history = [];
         this.symbol = symbol;
+        this.tick_history = [];
         this.startMonitoring();
     };
 

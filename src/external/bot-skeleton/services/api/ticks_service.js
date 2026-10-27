@@ -233,32 +233,23 @@ export default class TicksService {
     }
 
     requestStream(options) {
-        const { style } = options;
         const stringified_options = JSON.stringify(options);
 
-        if (style === 'ticks') {
-            if (this.ticks_history_promise?.stringified_options !== stringified_options) {
-                this.ticks_history_promise = {
-                    promise: this.requestPipSizes().then(() => this.requestTicks(options)),
-                    stringified_options,
-                };
-            }
-
-            return this.ticks_history_promise.promise;
+        if (!this.stream_promises) {
+            this.stream_promises = new Map();
         }
 
-        if (style === 'candles') {
-            if (!this.candles_promise || this.candles_promise.stringified_options !== stringified_options) {
-                this.candles_promise = {
-                    promise: this.requestPipSizes().then(() => this.requestTicks(options)),
-                    stringified_options,
-                };
-            }
-
-            return this.candles_promise.promise;
+        if (this.stream_promises.has(stringified_options)) {
+            return this.stream_promises.get(stringified_options);
         }
 
-        return [];
+        const promise = this.requestPipSizes().then(() => this.requestTicks(options));
+        this.stream_promises.set(stringified_options, promise);
+        promise.catch(() => {
+            this.stream_promises?.delete(stringified_options);
+        });
+
+        return promise;
     }
 
     requestTicks(options) {
@@ -289,6 +280,26 @@ export default class TicksService {
                     }
                 })
                 .catch(error => {
+                    if (error?.code === 'AlreadySubscribed') {
+                        // Symbol already subscribed on this shared connection — fetch history without subscribe:1
+                        const fallback_request = { ...request_object };
+                        delete fallback_request.subscribe;
+                        return doUntilDone(() => api_base.api.send(fallback_request), [], api_base)
+                            .then(r => {
+                                if (style === 'ticks') {
+                                    const ticks = historyToTicks(r.history);
+                                    this.updateTicksAndCallListeners(symbol, ticks);
+                                    resolve(ticks);
+                                } else {
+                                    const candles = parseCandles(r.candles);
+                                    this.updateCandlesAndCallListeners([symbol, Number(granularity)], candles);
+                                    resolve(candles);
+                                }
+                            })
+                            .catch(fallback_error => {
+                                reject(fallback_error);
+                            });
+                    }
                     if (error?.code === 'InvalidSymbol') {
                         clearAuthData();
                     }

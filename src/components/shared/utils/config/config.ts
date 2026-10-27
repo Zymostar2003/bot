@@ -37,7 +37,10 @@ export const isProduction = () => {
 export const isTestLink = () => {
     return (
         window.location.origin?.includes('.binary.sx') ||
-        window.location.origin?.includes('bot-65f.pages.dev') ||
+        window.location.origin?.includes('pages.dev') ||
+        window.location.origin?.includes('.vercel.app') ||
+        window.location.origin?.includes('.github.io') ||
+        window.location.origin?.includes('.puter.site') ||
         isLocal()
     );
 };
@@ -73,7 +76,7 @@ export const getDefaultAppIdAndUrl = () => {
     }
 
     const current_domain = getCurrentProductionDomain() ?? '';
-    const app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? APP_IDS.PRODUCTION;
+    const app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? 1089;
 
     return { app_id, server_url };
 };
@@ -90,7 +93,7 @@ export const getAppId = () => {
     } else if (isTestLink()) {
         app_id = APP_IDS.LOCALHOST;
     } else {
-        app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? APP_IDS.PRODUCTION;
+        app_id = domain_app_ids[current_domain as keyof typeof domain_app_ids] ?? 1089;
     }
 
     return app_id;

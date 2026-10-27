@@ -4,7 +4,7 @@ import {
     CONNECTION_STATUS,
     connectionStatus$,
 } from '@/external/bot-skeleton/services/api/observables/connection-status-stream';
-import TicksService from '@/external/bot-skeleton/services/api/ticks_service';
+import { DerivStream } from '@/utils/deriv-websocket';
 import { toFullHistoryTicks } from '@/utils/signal-engine/adapters';
 import { checkGravitonPulseCross } from '@/utils/signal-engine/crossover';
 import { calcGraviton } from '@/utils/signal-engine/graviton';
@@ -68,11 +68,10 @@ const MAX_CHART_MARKERS = 30;
 
 export default class SignalEngineStore {
     root_store: RootStore;
-    ticks_service: TicksService | null = null;
-    tick_monitor_key: string | null = null;
-    candle_monitor_key: string | null = null;
+    stream: DerivStream | null = null;
     connection_subscription: { unsubscribe: () => void } | null = null;
     has_set_initial_symbol = false;
+    _stream_pip_size = 2;
 
     // Algorithmic memory that the ported functions mutate — kept as plain (non-observable)
     // fields, matching the reference's module-global _lastCrossSignal / _iframeSigState /
@@ -91,18 +90,15 @@ export default class SignalEngineStore {
     indicator_visibility: TIndicatorVisibility = { vfpi: true, graviton: true, pulse: true };
     sound_enabled = false;
     is_subscribed = false;
+    network_latency = 0;
+    network_strength: 1 | 2 | 3 | 4 = 4;
 
     // Over/Under tab state — faithful defaults from the reference's globals
     // (index-335-black-bars.html, line 12167: "let activeBarrier = 5, activeDir = 'over'").
     active_barrier = 5;
     active_dir: TOUDirection = 'over';
 
-    // Asset picker options — a local observable copy of api_base.active_symbols (itself a
-    // plain non-reactive array) scoped to synthetic indices only, matching the reference's
-    // 4 categories (volatility/jump/crash_boom/step), which are all market:'synthetic_index'
-    // submarkets. Reused from the existing app-wide active_symbols fetch — the reference
-    // opens its own separate `active_symbols:'brief'` socket call (buildMarketList, line
-    // 13419); that's not ported since dbot already fetches this once at connection open.
+    // Asset picker options — a local observable copy of active symbols scoped to synthetic indices only
     available_symbols: ActiveSymbols = [];
 
     // Written by the reaction watching vfpi_results, mirroring the reference's
@@ -125,6 +121,8 @@ export default class SignalEngineStore {
             indicator_visibility: observable,
             sound_enabled: observable,
             is_subscribed: observable,
+            network_latency: observable,
+            network_strength: observable,
             last_vfpi_value: observable,
             cross_signal: observable,
             chart_markers: observable,
@@ -147,11 +145,14 @@ export default class SignalEngineStore {
             setActiveBarrier: action.bound,
             setActiveDir: action.bound,
             setAvailableSymbols: action.bound,
+            setNetworkStats: action.bound,
             updateIndicatorSetting: action.bound,
             resetIndicatorSettings: action.bound,
             toggleIndicator: action.bound,
             toggleSound: action.bound,
+            onTick: action,
             onTicksUpdate: action,
+            onCandle: action,
             onCandlesUpdate: action,
             setSubscribed: action,
             initDefaultSymbol: action,
@@ -162,11 +163,13 @@ export default class SignalEngineStore {
 
         this.root_store = root_store;
 
-        // api_base.init() (app-root.tsx) races RootStore construction (useStore.tsx), so
-        // TicksService — which only binds its onMessage listener if api_base.api already
-        // exists — must not be created until the connection is confirmed OPENED.
+        // Auto-connect and start streaming directly via DerivStream
+        this.initDefaultSymbol();
+        this.startMonitoring();
+        this.loadAvailableSymbols();
+
         this.connection_subscription = connectionStatus$.subscribe(status => {
-            if (status === CONNECTION_STATUS.OPENED && api_base.api) {
+            if (status === CONNECTION_STATUS.OPENED) {
                 this.initDefaultSymbol();
                 this.startMonitoring();
                 this.loadAvailableSymbols();
@@ -229,7 +232,7 @@ export default class SignalEngineStore {
     // ── Derived indicator data (pure calc — safe as MobX computed) ──
 
     get pip_size(): number {
-        return (api_base.pip_sizes as Record<string, number>)?.[this.symbol] ?? 2;
+        return (api_base.pip_sizes as Record<string, number>)?.[this.symbol] ?? this._stream_pip_size ?? 2;
     }
 
     get full_history(): TFullHistoryTick[] {
@@ -411,150 +414,152 @@ export default class SignalEngineStore {
     // ── WebSocket wiring (from step a, unchanged) ──
 
     initDefaultSymbol = () => {
-        if (this.has_set_initial_symbol) return;
+        if (this.has_set_initial_symbol && this.symbol) return;
         const { chart_store } = this.root_store;
         if (chart_store?.symbol) {
             this.symbol = chart_store.symbol;
+        } else if (this.available_symbols.length) {
+            this.symbol = this.available_symbols[0].symbol;
+        } else {
+            this.symbol = 'R_50';
         }
         this.has_set_initial_symbol = true;
     };
 
-    // Faithful port of buildMarketList's data source (reference: index-335-black-bars.html,
-    // lines 13419-13433), scoped to synthetic indices only. Reuses the app's existing
-    // active_symbols fetch (api_base.active_symbols / active_symbols_promise) rather than
-    // opening the reference's separate `active_symbols:'brief'` socket call.
+    // Load available synthetic index symbols
     loadAvailableSymbols = async () => {
-        if (!api_base.has_active_symbols) {
-            await api_base.active_symbols_promise;
+        if (api_base.has_active_symbols && (api_base.active_symbols as any[])?.length) {
+            const symbols = (api_base.active_symbols ?? []) as ActiveSymbols;
+            this.setAvailableSymbols(symbols.filter(s => s.market === 'synthetic_index'));
+            return;
         }
-        const symbols = (api_base.active_symbols ?? []) as ActiveSymbols;
-        this.setAvailableSymbols(symbols.filter(s => s.market === 'synthetic_index'));
+
+        if (!this.stream) {
+            this.stream = new DerivStream({
+                tag: 'SignalEngine',
+                callbacks: {
+                    onLatency: (latencyMs, strength) => this.setNetworkStats(latencyMs, strength),
+                },
+            });
+        }
+        this.stream.requestActiveSymbols(symbols => {
+            const synth = (symbols || []).filter((s: any) => s.market === 'synthetic_index');
+            this.setAvailableSymbols(synth as ActiveSymbols);
+        });
     };
 
     startMonitoring = () => {
         if (!this.symbol) return;
-        if (!this.ticks_service) {
-            this.ticks_service = new TicksService();
+        if (!this.stream) {
+            this.stream = new DerivStream({
+                tag: 'SignalEngine',
+                callbacks: {
+                    onLatency: (latencyMs, strength) => this.setNetworkStats(latencyMs, strength),
+                },
+            });
         }
 
-        // Captured so the callbacks/`.then()`s below can tell whether they're still relevant
-        // once they actually resolve — TicksService.monitor() now delivers its initial
-        // history batch as soon as it's fetched (see ticks_service.js's monitor() fix) rather
-        // than waiting for the next live tick/candle, which means a slow response for a
-        // symbol/granularity the user has since switched away from can otherwise land AFTER
-        // a faster response for the new one and silently overwrite it with stale data.
         const symbol = this.symbol;
         const granularity = this.granularity;
 
-        this.ticks_service
-            .monitor({
-                symbol,
-                granularity: undefined,
-                callback: ticks => {
-                    if (this.symbol !== symbol) return; // superseded by a newer setSymbol call
-                    this.onTicksUpdate(ticks);
-                },
-            })
-            .then(key => {
-                if (this.symbol === symbol) this.tick_monitor_key = key;
-            });
+        this.stream.subscribeTicks(
+            symbol,
+            (tick, pips) => {
+                if (this.symbol !== symbol) return;
+                this.onTick(tick, pips);
+            },
+            (ticks, pips) => {
+                if (this.symbol !== symbol) return;
+                this.onTicksUpdate(ticks, pips);
+            }
+        );
 
-        this.ticks_service
-            .monitor({
-                symbol,
-                granularity,
-                callback: candles => {
-                    // superseded by a newer setSymbol/setGranularity call
-                    if (this.symbol !== symbol || this.granularity !== granularity) return;
-                    this.onCandlesUpdate(candles);
-                },
-            })
-            .then(key => {
-                if (this.symbol === symbol && this.granularity === granularity) this.candle_monitor_key = key;
-            });
+        this.stream.subscribeCandles(
+            symbol,
+            granularity,
+            candle => {
+                if (this.symbol !== symbol || this.granularity !== granularity) return;
+                this.onCandle(candle);
+            },
+            candles => {
+                if (this.symbol !== symbol || this.granularity !== granularity) return;
+                this.onCandlesUpdate(candles);
+            }
+        );
 
         this.setSubscribed(true);
         // eslint-disable-next-line no-console
-        console.log('[SignalEngineStore] monitoring started', { symbol: this.symbol, granularity: this.granularity });
+        console.log('[SignalEngineStore] stream monitoring started', { symbol: this.symbol, granularity: this.granularity });
     };
 
-    stopMonitoring = (symbol: string = this.symbol, granularity: number = this.granularity) => {
-        if (!this.ticks_service) return;
-
-        if (this.tick_monitor_key) {
-            this.ticks_service.stopMonitor({ symbol, granularity: undefined, key: this.tick_monitor_key });
-            this.tick_monitor_key = null;
-        }
-        if (this.candle_monitor_key) {
-            this.ticks_service.stopMonitor({ symbol, granularity, key: this.candle_monitor_key });
-            this.candle_monitor_key = null;
+    stopMonitoring = () => {
+        if (this.stream) {
+            this.stream.unsubscribe('all');
         }
         this.setSubscribed(false);
     };
 
-    onTicksUpdate = (ticks: TTick[]) => {
-        this.tick_history = ticks;
+    onTick = (tick: TTick, pips?: number) => {
+        if (pips && pips !== this._stream_pip_size) {
+            this._stream_pip_size = pips;
+        }
+        const last = this.tick_history[this.tick_history.length - 1];
+        if (last && last.epoch >= tick.epoch) return;
+        this.tick_history = [...this.tick_history.slice(-999), tick];
+    };
+
+    onTicksUpdate = (ticks: TTick[], pips?: number) => {
+        if (pips && pips !== this._stream_pip_size) {
+            this._stream_pip_size = pips;
+        }
+        this.tick_history = ticks.slice(-1000);
         // eslint-disable-next-line no-console
-        console.log('[SignalEngineStore] tick', this.symbol, ticks.length, ticks[ticks.length - 1]);
+        console.log('[SignalEngineStore] tick batch', this.symbol, ticks.length);
+    };
+
+    onCandle = (candle: TCandle) => {
+        const last = this.candle_history[this.candle_history.length - 1];
+        if (last && last.epoch === candle.epoch) {
+            this.candle_history = [...this.candle_history.slice(0, -1), candle];
+        } else if (!last || candle.epoch > last.epoch) {
+            this.candle_history = [...this.candle_history.slice(-1499), candle];
+        }
     };
 
     onCandlesUpdate = (candles: TCandle[]) => {
-        this.candle_history = candles;
+        this.candle_history = candles.slice(-1500);
         // eslint-disable-next-line no-console
-        console.log(
-            '[SignalEngineStore] candle',
-            this.symbol,
-            this.granularity,
-            candles.length,
-            candles[candles.length - 1]
-        );
+        console.log('[SignalEngineStore] candle batch', this.symbol, this.granularity, candles.length);
+    };
+
+    setNetworkStats = (latency: number, strength: 1 | 2 | 3 | 4) => {
+        this.network_latency = latency;
+        this.network_strength = strength;
     };
 
     setSubscribed = (is_subscribed: boolean) => {
         this.is_subscribed = is_subscribed;
     };
 
-    // One-way: reads chart_store.symbol only once as the initial default (see initDefaultSymbol).
-    // Changing the Signal Engine symbol afterwards never writes back to chart_store.
     setSymbol = (symbol: string) => {
         if (!symbol || symbol === this.symbol) return;
-        const prev_symbol = this.symbol;
-        const prev_granularity = this.granularity;
-        this.stopMonitoring(prev_symbol, prev_granularity);
+        this.symbol = symbol;
         this.tick_history = [];
         this.candle_history = [];
-        this.symbol = symbol;
         this.startMonitoring();
     };
 
     setGranularity = (granularity: number) => {
         if (granularity === this.granularity) return;
-        if (this.ticks_service && this.candle_monitor_key) {
-            this.ticks_service.stopMonitor({
-                symbol: this.symbol,
-                granularity: this.granularity,
-                key: this.candle_monitor_key,
-            });
-            this.candle_monitor_key = null;
-        }
         this.granularity = granularity;
         this.candle_history = [];
-        if (this.ticks_service && this.symbol) {
-            // Same stale-response guard as startMonitoring() — see its comment.
-            const symbol = this.symbol;
-
-            this.ticks_service
-                .monitor({
-                    symbol,
-                    granularity,
-                    callback: candles => {
-                        if (this.symbol !== symbol || this.granularity !== granularity) return;
-                        this.onCandlesUpdate(candles);
-                    },
-                })
-                .then(key => {
-                    if (this.symbol === symbol && this.granularity === granularity) this.candle_monitor_key = key;
-                });
+        if (this.stream && this.symbol) {
+            this.stream.subscribeCandles(
+                this.symbol,
+                this.granularity,
+                candle => this.onCandle(candle),
+                candles => this.onCandlesUpdate(candles)
+            );
         }
     };
 
