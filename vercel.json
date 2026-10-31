@@ -1,6 +1,6 @@
 {
     "outputDirectory": "dist",
-    "buildCommand": "echo ✅  Skipping build to use existing built files",
+    "buildCommand": "npm run build",
     "rewrites": [
         {
             "source": "/(.*)",
